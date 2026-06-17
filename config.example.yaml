@@ -1,0 +1,6 @@
+database:
+  path: ./data/feeds.db
+
+http:
+  timeout: 30s
+  user_agent: "feed-tracker/0.1"
