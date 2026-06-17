@@ -5,6 +5,7 @@ import "time"
 type Entry struct {
 	ID          string
 	FeedID      string
+	FeedTitle   string
 	ExternalID  string
 	Title       string
 	URL         string
@@ -14,4 +15,5 @@ type Entry struct {
 	PublishedAt time.Time
 	UpdatedAt   time.Time
 	FetchedAt   time.Time
+	Read        bool
 }

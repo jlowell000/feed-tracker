@@ -1,6 +1,12 @@
 package storage
 
 const schema = `
+CREATE TABLE IF NOT EXISTS folders (
+    id         TEXT PRIMARY KEY,
+    name       TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS feeds (
     id            TEXT PRIMARY KEY,
     title         TEXT NOT NULL DEFAULT '',
@@ -10,6 +16,7 @@ CREATE TABLE IF NOT EXISTS feeds (
     feed_type     TEXT NOT NULL,
     etag          TEXT NOT NULL DEFAULT '',
     last_modified TEXT NOT NULL DEFAULT '',
+    folder_id     TEXT DEFAULT '' REFERENCES folders(id) ON DELETE SET NULL,
     created_at    TEXT NOT NULL,
     updated_at    TEXT NOT NULL,
     last_fetched  TEXT NOT NULL DEFAULT ''
@@ -27,6 +34,7 @@ CREATE TABLE IF NOT EXISTS entries (
     published_at TEXT NOT NULL DEFAULT '',
     updated_at   TEXT NOT NULL DEFAULT '',
     fetched_at   TEXT NOT NULL,
+    read         INTEGER NOT NULL DEFAULT 0,
     UNIQUE(feed_id, external_id)
 );
 

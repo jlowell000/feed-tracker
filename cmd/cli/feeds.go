@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -11,6 +12,10 @@ import (
 )
 
 func runFeeds(ctx context.Context, cfgPath string, args []string) {
+	fs := flag.NewFlagSet("feeds", flag.ExitOnError)
+	namesOnly := fs.Bool("names", false, "list feed names only (one per line)")
+	fs.Parse(args)
+
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
@@ -32,6 +37,13 @@ func runFeeds(ctx context.Context, cfgPath string, args []string) {
 
 	if len(feeds) == 0 {
 		fmt.Println("no feeds tracked yet")
+		return
+	}
+
+	if *namesOnly {
+		for _, f := range feeds {
+			fmt.Println(f.Title)
+		}
 		return
 	}
 

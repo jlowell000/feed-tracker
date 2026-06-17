@@ -142,3 +142,292 @@ func TestListEntries(t *testing.T) {
 		t.Errorf("first entry.Title = %q, want %q", entries[0].Title, "Latest")
 	}
 }
+
+func TestAddAndListFolders(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	f1 := &domain.Folder{ID: uuid.New().String(), Name: "Tech"}
+	f2 := &domain.Folder{ID: uuid.New().String(), Name: "News"}
+	if err := s.AddFolder(ctx, f1); err != nil {
+		t.Fatalf("AddFolder: %v", err)
+	}
+	if err := s.AddFolder(ctx, f2); err != nil {
+		t.Fatalf("AddFolder: %v", err)
+	}
+
+	folders, err := s.ListFolders(ctx)
+	if err != nil {
+		t.Fatalf("ListFolders: %v", err)
+	}
+	if len(folders) != 2 {
+		t.Fatalf("len(folders) = %d, want 2", len(folders))
+	}
+}
+
+func TestGetFolderByName(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	f := &domain.Folder{ID: uuid.New().String(), Name: "Tech"}
+	s.AddFolder(ctx, f)
+
+	got, err := s.GetFolderByName(ctx, "Tech")
+	if err != nil {
+		t.Fatalf("GetFolderByName: %v", err)
+	}
+	if got.Name != "Tech" {
+		t.Errorf("Name = %q, want %q", got.Name, "Tech")
+	}
+}
+
+func TestGetFolderByName_Missing(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	_, err := s.GetFolderByName(ctx, "Nonexistent")
+	if err == nil {
+		t.Fatal("expected error for missing folder")
+	}
+}
+
+func TestDeleteFolder(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	f := &domain.Folder{ID: uuid.New().String(), Name: "Tech"}
+	s.AddFolder(ctx, f)
+
+	if err := s.DeleteFolder(ctx, f.ID); err != nil {
+		t.Fatalf("DeleteFolder: %v", err)
+	}
+
+	folders, err := s.ListFolders(ctx)
+	if err != nil {
+		t.Fatalf("ListFolders: %v", err)
+	}
+	if len(folders) != 0 {
+		t.Errorf("len(folders) = %d, want 0", len(folders))
+	}
+}
+
+func TestSetFeedFolder(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	folder := &domain.Folder{ID: uuid.New().String(), Name: "Tech"}
+	s.AddFolder(ctx, folder)
+
+	feed := &domain.Feed{
+		ID:       uuid.New().String(),
+		Title:    "Test",
+		FeedURL:  "https://example.com/feed",
+		FeedType: domain.FeedTypeRSS,
+	}
+	s.AddFeed(ctx, feed)
+
+	if err := s.SetFeedFolder(ctx, feed.ID, folder.ID); err != nil {
+		t.Fatalf("SetFeedFolder: %v", err)
+	}
+
+	got, err := s.GetFeed(ctx, feed.ID)
+	if err != nil {
+		t.Fatalf("GetFeed: %v", err)
+	}
+	if got.FolderID != folder.ID {
+		t.Errorf("FolderID = %q, want %q", got.FolderID, folder.ID)
+	}
+}
+
+func TestSetFeedFolder_ClearsFolder(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	folder := &domain.Folder{ID: uuid.New().String(), Name: "Tech"}
+	s.AddFolder(ctx, folder)
+
+	feed := &domain.Feed{
+		ID:       uuid.New().String(),
+		Title:    "Test",
+		FeedURL:  "https://example.com/feed",
+		FeedType: domain.FeedTypeRSS,
+	}
+	s.AddFeed(ctx, feed)
+	s.SetFeedFolder(ctx, feed.ID, folder.ID)
+
+	if err := s.SetFeedFolder(ctx, feed.ID, ""); err != nil {
+		t.Fatalf("SetFeedFolder(empty): %v", err)
+	}
+
+	got, err := s.GetFeed(ctx, feed.ID)
+	if err != nil {
+		t.Fatalf("GetFeed: %v", err)
+	}
+	if got.FolderID != "" {
+		t.Errorf("FolderID = %q, want empty", got.FolderID)
+	}
+}
+
+func TestListFeedsWithFolderID(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	folder := &domain.Folder{ID: uuid.New().String(), Name: "Tech"}
+	s.AddFolder(ctx, folder)
+
+	feed := &domain.Feed{
+		ID:       uuid.New().String(),
+		Title:    "Test",
+		FeedURL:  "https://example.com/feed",
+		FeedType: domain.FeedTypeRSS,
+	}
+	s.AddFeed(ctx, feed)
+	s.SetFeedFolder(ctx, feed.ID, folder.ID)
+
+	feeds, err := s.ListFeeds(ctx)
+	if err != nil {
+		t.Fatalf("ListFeeds: %v", err)
+	}
+	if len(feeds) != 1 {
+		t.Fatalf("len(feeds) = %d, want 1", len(feeds))
+	}
+	if feeds[0].FolderID != folder.ID {
+		t.Errorf("FolderID = %q, want %q", feeds[0].FolderID, folder.ID)
+	}
+}
+
+func TestAddFolder_DuplicateName(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	f1 := &domain.Folder{ID: uuid.New().String(), Name: "Tech"}
+	s.AddFolder(ctx, f1)
+
+	f2 := &domain.Folder{ID: uuid.New().String(), Name: "Tech"}
+	if err := s.AddFolder(ctx, f2); err == nil {
+		t.Fatal("expected error for duplicate folder name")
+	}
+}
+
+func TestDeleteFolder_FeedsRetainFolderID(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	folder := &domain.Folder{ID: uuid.New().String(), Name: "Tech"}
+	s.AddFolder(ctx, folder)
+
+	feed := &domain.Feed{
+		ID:       uuid.New().String(),
+		Title:    "Test",
+		FeedURL:  "https://example.com/feed",
+		FeedType: domain.FeedTypeRSS,
+	}
+	s.AddFeed(ctx, feed)
+	s.SetFeedFolder(ctx, feed.ID, folder.ID)
+
+	if err := s.DeleteFolder(ctx, folder.ID); err != nil {
+		t.Fatalf("DeleteFolder: %v", err)
+	}
+
+	got, err := s.GetFeed(ctx, feed.ID)
+	if err != nil {
+		t.Fatalf("GetFeed: %v", err)
+	}
+	// Foreign keys are not enforced by default, so folder_id persists
+	if got.FolderID == "" {
+		t.Error("expected folder_id to persist after folder delete")
+	}
+}
+
+func TestUnreadCountByFeed(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+
+	entry := &domain.Entry{
+		ID: uuid.New().String(), FeedID: feedID, ExternalID: "e1",
+		Title: "Entry", FetchedAt: time.Now(),
+	}
+	s.UpsertEntry(ctx, entry)
+
+	counts, err := s.UnreadCountByFeed(ctx)
+	if err != nil {
+		t.Fatalf("UnreadCountByFeed: %v", err)
+	}
+	if counts[feedID] != 1 {
+		t.Errorf("counts[%s] = %d, want 1", feedID, counts[feedID])
+	}
+
+	s.MarkEntryRead(ctx, entry.ID)
+	counts, _ = s.UnreadCountByFeed(ctx)
+	if counts[feedID] != 0 {
+		t.Errorf("after mark read, counts[%s] = %d, want 0", feedID, counts[feedID])
+	}
+}
+
+func TestMarkEntryReadUnread(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+
+	entryID := uuid.New().String()
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: entryID, FeedID: feedID, ExternalID: "e1",
+		Title: "Entry", FetchedAt: time.Now(),
+	})
+
+	if err := s.MarkEntryRead(ctx, entryID); err != nil {
+		t.Fatalf("MarkEntryRead: %v", err)
+	}
+
+	entries, _ := s.ListEntriesUnread(ctx, feedID, 10)
+	if len(entries) != 0 {
+		t.Error("expected no unread entries after mark read")
+	}
+
+	if err := s.MarkEntryUnread(ctx, entryID); err != nil {
+		t.Fatalf("MarkEntryUnread: %v", err)
+	}
+
+	entries, _ = s.ListEntriesUnread(ctx, feedID, 10)
+	if len(entries) != 1 {
+		t.Error("expected 1 unread entry after mark unread")
+	}
+}
+
+func TestListEntriesUnread(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+
+	e1ID := uuid.New().String()
+	e2ID := uuid.New().String()
+
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: e1ID, FeedID: feedID, ExternalID: "e1",
+		Title: "Unread", FetchedAt: time.Now(),
+	})
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: e2ID, FeedID: feedID, ExternalID: "e2",
+		Title: "Read", FetchedAt: time.Now(),
+	})
+
+	s.MarkEntryRead(ctx, e2ID)
+
+	unread, err := s.ListEntriesUnread(ctx, feedID, 10)
+	if err != nil {
+		t.Fatalf("ListEntriesUnread: %v", err)
+	}
+	if len(unread) != 1 {
+		t.Errorf("len(unread) = %d, want 1", len(unread))
+	}
+	if unread[0].Title != "Unread" {
+		t.Errorf("unread[0].Title = %q, want %q", unread[0].Title, "Unread")
+	}
+}

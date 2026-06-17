@@ -49,8 +49,20 @@ func main() {
 		runFetch(ctx, *cfgPath, remaining)
 	case "feeds":
 		runFeeds(ctx, *cfgPath, remaining)
+	case "folder":
+		runFolder(ctx, *cfgPath, remaining)
+	case "import":
+		runImport(ctx, *cfgPath, remaining)
+	case "export":
+		runExport(ctx, *cfgPath, remaining)
 	case "list":
 		runList(ctx, *cfgPath, remaining)
+	case "completion":
+		if len(remaining) < 1 {
+			fmt.Fprintln(os.Stderr, "usage: ft completion bash|zsh")
+			os.Exit(1)
+		}
+		runCompletion(remaining[0])
 	case "help", "-h", "--help":
 		printUsage()
 	default:
@@ -61,14 +73,18 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Fprint(os.Stderr, `Usage: feedtracker [--config <path>] <command> [args]
+	fmt.Fprint(os.Stderr, `Usage: ft [--config <path>] <command> [args]
 
 Commands:
-  migrate          Create or update the database schema
-  add    <url>     Add a new feed by URL
-  fetch  [--feed-id <id>]  Fetch new entries from feed(s)
-  feeds            List all tracked feeds
-  list   [--feed-id <id>] [--limit <n>]  List entries
+  migrate           Create or update the database schema
+  add    <url>      Add a new feed by URL
+  fetch  [<name> | --feed-id <id>]  Fetch new entries from feed(s)
+  feeds             List all tracked feeds
+  folder [create|delete|rename]  Manage folders
+  import [--dry-run] <file.opml>  Import feeds from OPML file
+  export [--output <file>]        Export feeds to OPML file
+  list   [<name> | --feed-id <id>] [--limit <n>]  List entries
+  completion bash|zsh  Generate shell completion script
 
 Flags:
   --config <path>  Path to config file (default: ./config.yaml)

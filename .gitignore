@@ -35,6 +35,7 @@ data/
 
 # Config
 config.yaml
+.opml
 
 # Editor/IDE
 # .idea/

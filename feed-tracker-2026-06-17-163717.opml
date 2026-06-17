@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>Feed Tracker Export</title>
+  </head>
+  <body>
+    <outline text="news">
+      <outline text="Mexico Solidarity Media" type="rss" xmlUrl="https://mexicosolidarity.com/feed/"></outline>
+      <outline text="Orinoco Tribune" type="rss" xmlUrl="https://orinocotribune.com/feed/"></outline>
+      <outline text="Peoples Dispatch" type="rss" xmlUrl="https://peoplesdispatch.org/feed/"></outline>
+      <outline text="Struggle – La Lucha" type="rss" xmlUrl="https://www.struggle-la-lucha.org/feed/"></outline>
+      <outline text="The Electronic Intifada" type="rss" xmlUrl="https://electronicintifada.net/rss.xml"></outline>
+      <outline text="The Real News Network" type="rss" xmlUrl="https://therealnews.com/feed"></outline>
+    </outline>
+    <outline text="pds">
+      <outline text="Guerrilla History" type="rss" xmlUrl="http://feeds.libsyn.com/307478/rss"></outline>
+      <outline text="Proles Pod" type="rss" xmlUrl="http://feeds.libsyn.com/125454/rss"></outline>
+      <outline text="Rev Left Radio" type="rss" xmlUrl="http://feeds.libsyn.com/95194/rss"></outline>
+    </outline>
+    <outline text="tech">
+      <outline text="Ars Technica" type="rss" xmlUrl="https://arstechnica.com/feed"></outline>
+    </outline>
+    <outline text="GateWorld" type="rss" xmlUrl="https://www.gateworld.net/feed//"></outline>
+  </body>
+</opml>

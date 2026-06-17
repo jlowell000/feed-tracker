@@ -11,12 +11,23 @@ type Storage interface {
 
 	Migrate(ctx context.Context) error
 
+	AddFolder(ctx context.Context, folder *domain.Folder) error
+	ListFolders(ctx context.Context) ([]*domain.Folder, error)
+	GetFolderByName(ctx context.Context, name string) (*domain.Folder, error)
+	DeleteFolder(ctx context.Context, id string) error
+	SetFeedFolder(ctx context.Context, feedID, folderID string) error
+
 	AddFeed(ctx context.Context, feed *domain.Feed) error
 	GetFeed(ctx context.Context, id string) (*domain.Feed, error)
 	GetFeedByURL(ctx context.Context, url string) (*domain.Feed, error)
+	GetFeedByTitle(ctx context.Context, title string) (*domain.Feed, error)
 	ListFeeds(ctx context.Context) ([]*domain.Feed, error)
 	UpdateFeed(ctx context.Context, feed *domain.Feed) error
 
 	UpsertEntry(ctx context.Context, entry *domain.Entry) (bool, error)
 	ListEntries(ctx context.Context, feedID string, limit int) ([]*domain.Entry, error)
+	ListEntriesUnread(ctx context.Context, feedID string, limit int) ([]*domain.Entry, error)
+	MarkEntryRead(ctx context.Context, entryID string) error
+	MarkEntryUnread(ctx context.Context, entryID string) error
+	UnreadCountByFeed(ctx context.Context) (map[string]int, error)
 }

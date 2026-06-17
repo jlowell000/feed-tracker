@@ -17,9 +17,9 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 	limit := fs.Int("limit", 20, "max entries to show")
 	fs.Parse(args)
 
-	if *feedID == "" {
-		fmt.Fprintln(os.Stderr, "error: --feed-id is required")
-		os.Exit(1)
+	feedName := ""
+	if fs.Arg(0) != "" {
+		feedName = fs.Arg(0)
 	}
 
 	cfg, err := config.Load(cfgPath)
@@ -35,7 +35,17 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 	}
 	defer store.Close()
 
-	entries, err := store.ListEntries(ctx, *feedID, *limit)
+	resolvedID := *feedID
+	if feedName != "" {
+		feed, err := store.GetFeedByTitle(ctx, feedName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: feed %q not found\n", feedName)
+			os.Exit(1)
+		}
+		resolvedID = feed.ID
+	}
+
+	entries, err := store.ListEntries(ctx, resolvedID, *limit)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: list entries: %v\n", err)
 		os.Exit(1)
@@ -47,15 +57,25 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "PUBLISHED\tTITLE\tURL")
-	fmt.Fprintln(w, "---------\t-----\t---")
+	showFeed := resolvedID == ""
+	if showFeed {
+		fmt.Fprintln(w, "PUBLISHED\tFEED\tTITLE\tURL")
+		fmt.Fprintln(w, "---------\t----\t-----\t---")
+	} else {
+		fmt.Fprintln(w, "PUBLISHED\tTITLE\tURL")
+		fmt.Fprintln(w, "---------\t-----\t---")
+	}
 	for _, e := range entries {
 		pub := e.PublishedAt.Format("2006-01-02 15:04")
 		title := e.Title
 		if title == "" {
 			title = "(no title)"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\n", pub, title, e.URL)
+		if showFeed {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", pub, e.FeedTitle, title, e.URL)
+		} else {
+			fmt.Fprintf(w, "%s\t%s\t%s\n", pub, title, e.URL)
+		}
 	}
 	w.Flush()
 }

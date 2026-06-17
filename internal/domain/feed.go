@@ -20,6 +20,7 @@ type Feed struct {
 	FeedType     FeedType
 	ETag         string
 	LastModified string
+	FolderID     string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	LastFetched  time.Time

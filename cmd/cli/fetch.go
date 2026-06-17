@@ -16,6 +16,11 @@ func runFetch(ctx context.Context, cfgPath string, args []string) {
 	feedID := fs.String("feed-id", "", "fetch a specific feed by ID")
 	fs.Parse(args)
 
+	feedName := ""
+	if fs.Arg(0) != "" {
+		feedName = fs.Arg(0)
+	}
+
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
@@ -31,8 +36,18 @@ func runFetch(ctx context.Context, cfgPath string, args []string) {
 
 	tracker := feedtracker.New(cfg, store)
 
-	if *feedID != "" {
-		feed, err := store.GetFeed(ctx, *feedID)
+	resolvedID := *feedID
+	if feedName != "" {
+		feed, err := store.GetFeedByTitle(ctx, feedName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: feed %q not found\n", feedName)
+			os.Exit(1)
+		}
+		resolvedID = feed.ID
+	}
+
+	if resolvedID != "" {
+		feed, err := store.GetFeed(ctx, resolvedID)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: get feed: %v\n", err)
 			os.Exit(1)

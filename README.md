@@ -1,6 +1,6 @@
 # feed-tracker
 
-A general-purpose feed tracker that consumes RSS, Atom, JSON Feed, and ActivityPub feeds. Collects feed entries into a local SQLite database. Designed for cron-based periodic fetching — no daemon or UI required.
+A general-purpose feed tracker that consumes RSS, Atom, JSON Feed, and ActivityPub feeds. Collects feed entries into a local SQLite database. Includes both a CLI for cron-based periodic fetching and an interactive terminal UI.
 
 ## Formats
 
@@ -11,47 +11,101 @@ A general-purpose feed tracker that consumes RSS, Atom, JSON Feed, and ActivityP
 | JSON Feed 1.0, 1.1 | gofeed |
 | ActivityPub Outbox | Custom parser |
 
-## Quick Start
+## Quick Start (CLI)
 
 ```bash
 # Build
-go build -o bin/feedtracker ./cmd/feedtracker
+go build -o bin/ft ./cmd/cli
 
 # Create config
 cp config.example.yaml config.yaml
 
 # Initialize database
-./bin/feedtracker migrate
+./bin/ft migrate
 
 # Add a feed
-./bin/feedtracker add https://example.com/feed.xml
+./bin/ft add https://example.com/feed.xml
 
 # Fetch new entries
-./bin/feedtracker fetch
+./bin/ft fetch
 
 # List feeds
-./bin/feedtracker feeds
+./bin/ft feeds
 
-# List entries from a feed
-./bin/feedtracker list --feed-id <feed-uuid> --limit 20
+# List entries from a feed (by ID)
+./bin/ft list --feed-id <feed-uuid> --limit 20
+
+# List entries from a feed (by name)
+./bin/ft list "My Feed Name" --limit 10
+
+# List all entries across all feeds
+./bin/ft list --limit 30
+```
+
+## Quick Start (TUI)
+
+```bash
+# Build
+go build -o bin/ftui ./cmd/tui
+
+# Run (uses config.yaml by default)
+./bin/ftui
+
+# Or specify a config path
+./bin/ftui --config /path/to/config.yaml
 ```
 
 ## Cron Setup
 
 ```cron
 # Every hour, fetch all feeds
-0 * * * * /usr/bin/feedtracker --config /etc/feedtracker.yaml fetch
+0 * * * * /usr/bin/ft --config /etc/feedtracker.yaml fetch
 ```
 
-## Commands
+## Commands (CLI)
 
 | Command | Description |
 |---|---|
 | `migrate` | Create or update the database schema |
 | `add <url>` | Add a feed by URL — detects format automatically |
-| `fetch [--feed-id <id>]` | Fetch new entries from all feeds, or a specific one |
+| `fetch [<name> \| --feed-id <id>]` | Fetch new entries from all feeds, or a specific one |
 | `feeds` | List all tracked feeds with metadata |
-| `list --feed-id <id> [--limit <n>]` | List entries for a feed, newest first |
+| `folder` | List folders with feed counts |
+| `folder create <name>` | Create a folder |
+| `folder rename <old> <new>` | Rename a folder |
+| `folder delete <name>` | Delete a folder (feeds become ungrouped) |
+| `import [--dry-run] <file.opml>` | Import feeds from OPML file (preserves folders) |
+| `list [<name> \| --feed-id <id>] [--limit <n>]` | List entries, newest first. Omitting feed name/ID lists all. |
+| `completion bash\|zsh` | Generate shell completion script |
+
+## TUI
+
+The TUI binary (`ftui`) provides an interactive terminal interface with keyboard navigation.
+
+Read state is tracked per-entry — entries are automatically marked as read when viewed.
+Use `u` to toggle between showing only unread entries or all entries.
+
+### Keybindings
+
+| Key | Action |
+|---|---|
+| `↑/k` | Move up |
+| `↓/j` | Move down |
+| `Enter` | Select / Confirm |
+| `Esc` | Go back |
+| `a` | Add a new feed |
+| `g` | Create a folder |
+| `m` | Move feed to folder |
+| `d` | Delete folder |
+| `R` | Rename folder |
+| `Enter/Space` | Toggle folder collapse |
+| `f` | Fetch all feeds |
+| `r` | Refresh current view |
+| `u` | Toggle show read entries |
+| `M` | Mark entry unread (in entry detail) |
+| `o` | Open entry URL in browser |
+| `?` | Toggle help overlay |
+| `q/Ctrl+C` | Quit |
 
 ## Configuration
 
