@@ -29,3 +29,7 @@
 | 25 | CLI: delete feed | ✓ | `ft delete <name>`, `storage.DeleteFeed` |
 | 26 | TUI: OPML import/export | ✓ | `e`/`i` keys for export/import screens |
 | 27 | TUI: delete feed | ✓ | `d` key deletes feed or folder |
+| 28 | CLI: read/unread commands | ✓ | `ft read`/`ft unread <entry-id>` |
+| 29 | CLI: list --unread + read column | ✓ | `ft list --unread`, READ column in output |
+| 30 | CLI: feeds unread counts + --folders | ✓ | Unread column in `ft feeds`, `ft feeds --folders` grouped view |
+| 31 | CLI: folder move | ✓ | `ft folder move <feed> <folder>` |

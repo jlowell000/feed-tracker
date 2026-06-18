@@ -69,15 +69,18 @@ go build -o bin/ftui ./cmd/tui
 | `migrate` | Create or update the database schema |
 | `add <url>` | Add a feed by URL — detects format automatically |
 | `fetch [<name> \| --feed-id <id>]` | Fetch new entries from all feeds, or a specific one |
-| `feeds` | List all tracked feeds with metadata |
+| `feeds [--names \| --folders]` | List feeds with metadata, unread counts. `--names` one per line, `--folders` grouped by folder |
 | `folder` | List folders with feed counts |
 | `folder create <name>` | Create a folder |
 | `folder rename <old> <new>` | Rename a folder |
 | `folder delete <name>` | Delete a folder (feeds become ungrouped) |
+| `folder move <feed> <folder>` | Move a feed to a folder |
 | `export [--output <file>]` | Export feeds to OPML file (preserves folders) |
 | `import [--dry-run] <file.opml>` | Import feeds from OPML file (preserves folders) |
 | `delete <name> \| --feed-id <id>` | Delete a feed and all its entries |
-| `list [<name> \| --feed-id <id>] [--limit <n>]` | List entries, newest first. Omitting feed name/ID lists all. |
+| `list [<name> \| --feed-id <id>] [--limit <n>] [--unread]` | List entries, newest first. `--unread` filters to unread only. |
+| `read <entry-id>` | Mark an entry as read |
+| `unread <entry-id>` | Mark an entry as unread |
 | `completion bash\|zsh` | Generate shell completion script |
 
 ## TUI

@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/jlowell000/feed-tracker/internal/config"
+	"github.com/jlowell000/feed-tracker/internal/domain"
 	"github.com/jlowell000/feed-tracker/internal/storage"
 )
 
@@ -15,6 +16,7 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 	feedID := fs.String("feed-id", "", "feed ID to list entries for")
 	limit := fs.Int("limit", 20, "max entries to show")
+	unreadOnly := fs.Bool("unread", false, "show only unread entries")
 	fs.Parse(args)
 
 	feedName := ""
@@ -45,7 +47,12 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 		resolvedID = feed.ID
 	}
 
-	entries, err := store.ListEntries(ctx, resolvedID, *limit)
+	var entries []*domain.Entry
+	if *unreadOnly {
+		entries, err = store.ListEntriesUnread(ctx, resolvedID, *limit)
+	} else {
+		entries, err = store.ListEntries(ctx, resolvedID, *limit)
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: list entries: %v\n", err)
 		os.Exit(1)
@@ -59,11 +66,11 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	showFeed := resolvedID == ""
 	if showFeed {
-		fmt.Fprintln(w, "PUBLISHED\tFEED\tTITLE\tURL")
-		fmt.Fprintln(w, "---------\t----\t-----\t---")
+		fmt.Fprintln(w, "PUBLISHED\tFEED\tTITLE\tURL\tREAD")
+		fmt.Fprintln(w, "---------\t----\t-----\t---\t----")
 	} else {
-		fmt.Fprintln(w, "PUBLISHED\tTITLE\tURL")
-		fmt.Fprintln(w, "---------\t-----\t---")
+		fmt.Fprintln(w, "PUBLISHED\tTITLE\tURL\tREAD")
+		fmt.Fprintln(w, "---------\t-----\t---\t----")
 	}
 	for _, e := range entries {
 		pub := e.PublishedAt.Format("2006-01-02 15:04")
@@ -71,10 +78,14 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 		if title == "" {
 			title = "(no title)"
 		}
+		read := "no"
+		if e.Read {
+			read = "yes"
+		}
 		if showFeed {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", pub, e.FeedTitle, title, e.URL)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", pub, e.FeedTitle, title, e.URL, read)
 		} else {
-			fmt.Fprintf(w, "%s\t%s\t%s\n", pub, title, e.URL)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", pub, title, e.URL, read)
 		}
 	}
 	w.Flush()

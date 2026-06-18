@@ -54,9 +54,15 @@ func runFolder(ctx context.Context, cfgPath string, args []string) {
 			os.Exit(1)
 		}
 		renameFolder(ctx, store, rest[0], rest[1])
+	case "move":
+		if len(rest) < 2 {
+			fmt.Fprintln(os.Stderr, "usage: ft folder move <feed-name> <folder-name>")
+			os.Exit(1)
+		}
+		moveFeedToFolder(ctx, store, rest[0], rest[1])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown folder subcommand: %s\n", sub)
-		fmt.Fprintln(os.Stderr, "usage: ft folder [create|delete|rename]")
+		fmt.Fprintln(os.Stderr, "usage: ft folder [create|delete|rename|move]")
 		os.Exit(1)
 	}
 }
@@ -161,4 +167,25 @@ func renameFolder(ctx context.Context, store storage.Storage, oldName, newName s
 		os.Exit(1)
 	}
 	fmt.Printf("renamed folder %q to %q\n", oldName, newName)
+}
+
+func moveFeedToFolder(ctx context.Context, store storage.Storage, feedName, folderName string) {
+	feed, err := store.GetFeedByTitle(ctx, feedName)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: feed %q not found\n", feedName)
+		os.Exit(1)
+	}
+
+	folder, err := store.GetFolderByName(ctx, folderName)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: folder %q not found\n", folderName)
+		os.Exit(1)
+	}
+
+	if err := store.SetFeedFolder(ctx, feed.ID, folder.ID); err != nil {
+		fmt.Fprintf(os.Stderr, "error: move feed: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("moved %q to folder %q\n", feedName, folderName)
 }

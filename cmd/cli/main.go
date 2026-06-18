@@ -59,6 +59,10 @@ func main() {
 		runDelete(ctx, *cfgPath, remaining)
 	case "list":
 		runList(ctx, *cfgPath, remaining)
+	case "read":
+		runRead(ctx, *cfgPath, remaining)
+	case "unread":
+		runUnread(ctx, *cfgPath, remaining)
 	case "completion":
 		if len(remaining) < 1 {
 			fmt.Fprintln(os.Stderr, "usage: ft completion bash|zsh")
@@ -86,7 +90,9 @@ Commands:
   import [--dry-run] <file.opml>  Import feeds from OPML file
   export [--output <file>]        Export feeds to OPML file
   delete <name | --feed-id <id>>  Delete a feed and all its entries
-  list   [<name> | --feed-id <id>] [--limit <n>]  List entries
+  list   [<name> | --feed-id <id>] [--limit <n>] [--unread]  List entries
+  read   <entry-id>  Mark entry as read
+  unread <entry-id>  Mark entry as unread
   completion bash|zsh  Generate shell completion script
 
 Flags:
