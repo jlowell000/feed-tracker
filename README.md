@@ -13,45 +13,54 @@ A general-purpose feed tracker that consumes RSS, Atom, JSON Feed, and ActivityP
 
 ## Quick Start (CLI)
 
+#### Build (produces ./bin/cli and ./bin/tui)
 ```bash
-# Build (produces ./bin/cli and ./bin/tui)
 make build
-
-# Create config
+```
+#### Create config
+```bash
 cp config.example.yaml config.yaml
-
-# Initialize database
+```
+#### Initialize database
+```bash
 ./bin/cli migrate
-
-# Add a feed
+```
+#### Add a feed
+```bash
 ./bin/cli add https://example.com/feed.xml
-
-# Fetch new entries
+```
+#### Fetch new entries
+```bash
 ./bin/cli fetch
-
-# List feeds
+```
+#### List feeds
+```bash
 ./bin/cli feeds
-
-# List entries from a feed (by ID)
+```
+#### List entries from a feed (by ID)
+```bash
 ./bin/cli list --feed-id <feed-uuid> --limit 20
-
-# List entries from a feed (by name)
+```
+#### List entries from a feed (by name)
+```bash
 ./bin/cli list "My Feed Name" --limit 10
-
-# List all entries across all feeds
+```
+#### List all entries across all feeds
+```bash
 ./bin/cli list --limit 30
 ```
 
 ## Quick Start (TUI)
-
+#### Build (produces ./bin/cli and ./bin/tui)
 ```bash
-# Build (produces ./bin/cli and ./bin/tui)
 make build
-
-# Run (uses config.yaml by default)
+```
+#### Run (uses config.yaml by default)
+```bash
 ./bin/tui
-
-# Or specify a config path
+```
+#### Or specify a config path
+```bash
 ./bin/tui --config /path/to/config.yaml
 ```
 
