@@ -88,6 +88,90 @@ tui:
 
 ---
 
+## Phase 3b: Build Tooling (Makefile) ✅
+
+> Completed — standard Makefile at project root.
+
+### What was done
+
+| Target | Command | Purpose |
+|---|---|---|
+| `build` | `go build -o ./bin/ ./cmd/...` | Build both `cli` and `tui` into `./bin/` |
+| `test` | `go test -race ./... -count=1` | All tests with race detector |
+| `vet` | `go vet ./...` | Static analysis |
+| `lint` | `golangci-lint run` (if installed) | Linting |
+| `tidy` | `go mod tidy` | Tidy module dependencies |
+| `clean` | `rm -rf ./bin` | Remove build artifacts |
+| `run-cli` | `go run ./cmd/cli/...` | Quick CLI run |
+| `run-tui` | `go run ./cmd/tui/...` | Quick TUI run |
+| `install` | `go install ./cmd/...` | Install to `$GOPATH/bin` |
+| `all` | build + vet + test | CI-style workflow |
+| `pre-push` hook | `make all` before every push | Enforced via `core.hooksPath` |
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `Makefile` | New file at project root |
+| `.githooks/pre-push` | New hook — runs `make all` before push |
+| `README.md` | Development section now references Makefile targets |
+| `PROGRESS.md` | Steps 54–56 added |
+| `tasks/plan.md` | This section added, phases renumbered |
+
+---
+
+## Phase 4: Search, Filters & Bulk Ops (next)
+
+### Suggested scope
+
+| Item | Approach | Impact |
+|---|---|---|
+| **Entry search** | Basic `LIKE` on title/summary, or FTS5 index + `MATCH` for full-text | High — currently no way to find entries |
+| **Entry filter by feed** | Filter entries list to show only entries from selected feed (currently shows all entries for folder) | Medium |
+| **Bulk mark-read** | Mark all entries in a feed (or across all feeds) as read | High — common workflow gap |
+| **Bulk delete** | Delete all entries in a feed, or delete all read entries | Medium |
+| **Keyboard-driven feed switching** | Navigate to a feed's entries directly from the feed list without cursor selection + Enter | Low |
+
+### Preparation
+
+- FTS5 index would need a migration (`CREATE VIRTUAL TABLE entries_fts USING fts5(...)`) + triggers to keep in sync
+- Bulk ops need confirmation dialogs (TUI) or `--force` flags (CLI)
+
+---
+
+## Phase 5: Hardening & Polish (next after P4)
+
+### Suggested scope
+
+| Item | Approach |
+|---|---|
+| **Context timeouts** | Plumb context with timeouts from CLI/TUI entry points through to all storage/HTTP calls. Replace remaining `context.Background()` uses. |
+| **Virtualized feed list** | Refactor `buildDisplayItems` to only render visible rows. Worthwhile above ~200 feeds. |
+| **Database maintenance** | Add a `prune` or `vacuum` command. Auto-VACUUM on delete thresholds. |
+| **Browser-open in CLI** | Add `feed-tracker open <id>` to open feed URL in browser. |
+| **Feed title/URL editing** | Allow editing feed metadata from TUI and CLI. |
+| **Lazy content/summary** | Skip loading `content`/`summary` columns in list queries; load on detail view. Currently low ROI since JOIN removal already covers main query cost. |
+
+---
+
+## Deferred Work (collected)
+
+Items deferred across all completed phases, ordered by estimated value:
+
+| Priority | Item | Phase | Notes |
+|---|---|---|---|
+| High | Context deadlines + timeouts | P2 | Still `context.Background()` everywhere. Non-trivial — touches all CLI/TUI entry points. |
+| High | Entry search / FTS5 | P3 | Most requested feature for power users. Needs dedicated phase. |
+| High | Bulk operations | P1 | Mark-all-read, delete-all-read. Needs confirmation UX. |
+| Medium | Virtualized feed list | P3 | Major refactor of `buildDisplayItems`. Only pays off at 200+ feeds. |
+| Medium | Database maintenance commands | P1 | Vacuum, stats, integrity check. |
+| Low | Lazy content/summary loading | P3 | JOIN elimination already covers main query cost. |
+| Low | Feed title/URL editing | P1 | Nice-to-have, low complexity. |
+| Low | Browser-open in CLI | P1 | Trivial to add. |
+| Low | Domain package tests | P2 | Trivial getter structs; low value. |
+
+---
+
 ## Recommended Order
 
 1. ✅ ~~Auto-refresh in TUI + feature gaps~~ (Phase 1 complete)
@@ -96,6 +180,6 @@ tui:
 4. ✅ ~~Context deadlines + hardened error handling~~ (Phase 2 complete)
 5. ✅ ~~Bounded concurrent fetching~~ (Phase 3 complete)
 6. ✅ ~~Cursor pagination~~ (Phase 3 complete)
-7. Search/filter entries by keyword
-8. Bulk operations (mark-all-read, delete-all-read)
-9. Virtualized feed list in TUI (for 200+ feeds)
+7. ✅ ~~Makefile + build tooling~~ (Phase 3b complete)
+8. **Phase 4** — Search, filters & bulk ops
+9. **Phase 5** — Hardening & polish

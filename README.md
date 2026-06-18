@@ -14,45 +14,45 @@ A general-purpose feed tracker that consumes RSS, Atom, JSON Feed, and ActivityP
 ## Quick Start (CLI)
 
 ```bash
-# Build
-go build -o bin/ft ./cmd/cli
+# Build (produces ./bin/cli and ./bin/tui)
+make build
 
 # Create config
 cp config.example.yaml config.yaml
 
 # Initialize database
-./bin/ft migrate
+./bin/cli migrate
 
 # Add a feed
-./bin/ft add https://example.com/feed.xml
+./bin/cli add https://example.com/feed.xml
 
 # Fetch new entries
-./bin/ft fetch
+./bin/cli fetch
 
 # List feeds
-./bin/ft feeds
+./bin/cli feeds
 
 # List entries from a feed (by ID)
-./bin/ft list --feed-id <feed-uuid> --limit 20
+./bin/cli list --feed-id <feed-uuid> --limit 20
 
 # List entries from a feed (by name)
-./bin/ft list "My Feed Name" --limit 10
+./bin/cli list "My Feed Name" --limit 10
 
 # List all entries across all feeds
-./bin/ft list --limit 30
+./bin/cli list --limit 30
 ```
 
 ## Quick Start (TUI)
 
 ```bash
-# Build
-go build -o bin/ftui ./cmd/tui
+# Build (produces ./bin/cli and ./bin/tui)
+make build
 
 # Run (uses config.yaml by default)
-./bin/ftui
+./bin/tui
 
 # Or specify a config path
-./bin/ftui --config /path/to/config.yaml
+./bin/tui --config /path/to/config.yaml
 ```
 
 ## Cron Setup
@@ -138,8 +138,31 @@ tui:
 
 ## Development
 
+A Makefile is provided for common tasks:
+
+| Command | What it does |
+|---|---|
+| `make build` | Build both `cli` and `tui` binaries into `./bin/` |
+| `make test` | Run all tests with race detector |
+| `make vet` | Run `go vet` static analysis |
+| `make lint` | Run golangci-lint (if installed) |
+| `make tidy` | Tidy module dependencies |
+| `make clean` | Remove build artifacts |
+| `make run-cli` | Quick CLI run via `go run` |
+| `make run-tui` | Quick TUI run via `go run` |
+| `make install` | Install binaries to `$GOPATH/bin` |
+| `make all` | Build, vet, test (CI-style) |
+
+Set `RACE=0` to disable the race detector for faster test runs:
+
 ```bash
-go test ./...
-go vet ./...
-go build ./...
+make test RACE=0
+```
+
+### Pre-push hook
+
+A pre-push hook is configured at `.githooks/pre-push` that runs `make all` (build + vet + test) before every `git push`. The hook directory is set via `git config core.hooksPath .githooks` — already configured in this repo. New clones should run:
+
+```bash
+git config core.hooksPath .githooks
 ```

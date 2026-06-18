@@ -55,3 +55,7 @@
 | 51 | Perf: bounded concurrency for FetchAllFeeds | ✓ | Worker pool via `fetch_concurrency`, `sync.WaitGroup` |
 | 52 | Perf: feed staleness check | ✓ | `fetch_cooldown` config skips recently-fetched feeds |
 | 53 | Perf: offset support in ListEntries/ListEntriesUnread | ✓ | `LIMIT ? OFFSET ?` in storage layer |
+| 54 | Build: Makefile | ✓ | `build`, `test`, `vet`, `lint`, `tidy`, `clean`, `run-cli`, `run-tui`, `install`, `all` targets |
+| 55 | Docs: README updated | ✓ | Development section with Makefile table |
+| 56 | Docs: plan.md updated | ✓ | Phase 3b added, phases renumbered |
+| 57 | Build: pre-push hook | ✓ | `.githooks/pre-push` runs `make all`, `core.hooksPath` configured |
