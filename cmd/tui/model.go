@@ -48,6 +48,7 @@ const (
 	importScreen
 	importDryRunScreen
 	exportPickScreen
+	searchScreen
 )
 
 type model struct {
@@ -75,6 +76,8 @@ type model struct {
 	renameFolderID string
 	exportFilter   string
 	importSpecs    []opml.FeedSpec
+
+	searchQuery string
 
 	err    error
 	status string
@@ -163,6 +166,16 @@ type importPreviewMsg struct {
 type errMsg struct {
 	err error
 }
+
+type searchResultsMsg struct {
+	entries []*domain.Entry
+}
+
+type entriesMarkedReadMsg struct {
+	n int
+}
+
+type feedMarkedReadMsg struct{}
 
 func initialModel(cfg *config.Config, store storage.Storage, tracker *feedtracker.Tracker) model {
 	ti := textinput.New()
@@ -534,6 +547,49 @@ func importPreviewCmd(tracker *feedtracker.Tracker, path string) tea.Cmd {
 	return func() tea.Msg {
 		specs, err := opml.ParseFile(path)
 		return importPreviewMsg{specs: specs, err: err}
+	}
+}
+
+func searchEntriesCmd(store storage.Storage, query string, limit int) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		entries, err := store.SearchEntries(ctx, query, limit, 0)
+		if err != nil {
+			return errMsg{err}
+		}
+		return searchResultsMsg{entries: entries}
+	}
+}
+
+func markDisplayedReadCmd(store storage.Storage, entries []*domain.Entry) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		n := 0
+		for _, e := range entries {
+			if !e.Read {
+				if err := store.MarkEntryRead(ctx, e.ID); err != nil {
+					return errMsg{err}
+				}
+				n++
+			}
+		}
+		return entriesMarkedReadMsg{n: n}
+	}
+}
+
+func markFeedReadAllCmd(store storage.Storage, feedID string) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		var err error
+		if feedID == "" {
+			err = store.MarkAllRead(ctx)
+		} else {
+			err = store.MarkFeedRead(ctx, feedID)
+		}
+		if err != nil {
+			return errMsg{err}
+		}
+		return feedMarkedReadMsg{}
 	}
 }
 

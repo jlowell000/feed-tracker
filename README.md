@@ -87,8 +87,9 @@ make build
 | `export [--output <file>] [--folders-only \| --feeds-only]` | Export feeds to OPML file. `--folders-only`/`--feeds-only` filter by folder status |
 | `import [--dry-run] <file.opml>` | Import feeds from OPML file (preserves folders) |
 | `delete <name> \| --feed-id <id>` | Delete a feed and all its entries |
-| `list [<name> \| --feed-id <id>] [--limit <n>] [--unread] [--detail]` | List entries. `--unread` filters, `--detail` shows full entry info |
-| `read <entry-id>` | Mark an entry as read |
+| `list [<name> \| --feed-id <id>] [--limit <n>] [--unread] [--detail] [--search <q>]` | List entries. `--unread` filters, `--detail` shows full entry info, `--search` filters by keyword |
+| `search [--limit <n>] <query>` | Search entries by keyword across title and summary |
+| `read [--all \| --feed <name> \| --feed-id <id> \| <entry-id>]` | Mark entries as read: all, by feed, or single entry |
 | `unread <entry-id>` | Mark an entry as unread |
 | `completion bash\|zsh` | Generate shell completion script |
 
@@ -118,6 +119,9 @@ Use `u` to toggle between showing only unread entries or all entries.
 | `i` | Import feeds from OPML (with preview before importing) |
 | `r` | Refresh current view |
 | `u` | Toggle show read entries |
+| `s` | Search entries by keyword (in entry list) |
+| `a` | Mark all displayed entries as read (in entry list) |
+| `A` | Mark all entries in current feed as read (in entry list) |
 | `L` | Load more entries (paginated, in entry list) |
 | `M` | Mark entry unread (in entry detail) |
 | `o` | Open entry URL in browser |

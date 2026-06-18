@@ -134,6 +134,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case entriesLoadedMsg:
 		m.entries = msg.entries
+		m.searchQuery = ""
 		m.entryCursor = 0
 		m.entryOffset = len(msg.entries)
 		return m, nil
@@ -142,6 +143,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.entries = append(m.entries, msg.entries...)
 		m.entryOffset = len(m.entries)
 		return m, nil
+
+	case searchResultsMsg:
+		m.entries = msg.entries
+		m.entryCursor = 0
+		m.entryOffset = len(msg.entries)
+		return m, nil
+
+	case entriesMarkedReadMsg:
+		m.status = fmt.Sprintf("Marked %d entries as read", msg.n)
+		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit)
+
+	case feedMarkedReadMsg:
+		m.status = "Marked all entries as read"
+		return m, tea.Batch(
+			loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit),
+			loadUnreadCountsCmd(m.store),
+		)
 
 	case feedAddedMsg:
 		m.loading = false
@@ -201,6 +219,8 @@ func (m model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleImportDryRunKey(msg)
 	case exportPickScreen:
 		return m.handleExportPickKey(msg)
+	case searchScreen:
+		return m.handleSearchKey(msg)
 	}
 	return m, nil
 }
@@ -345,17 +365,35 @@ func (m model) handleEntriesListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.viewport.GotoTop()
 			return m, markEntryReadCmd(m.store, m.entry.ID)
 		}
+	case "s":
+		if !m.loading && len(m.entries) > 0 {
+			m.prevScreen = m.screen
+			m.screen = searchScreen
+			m.textInput.SetValue("")
+			m.textInput.Placeholder = "Search entries..."
+			m.textInput.Focus()
+		}
 	case "u":
 		m.showRead = !m.showRead
 		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit)
+	case "a":
+		if len(m.entries) > 0 {
+			return m, markDisplayedReadCmd(m.store, m.entries)
+		}
+	case "A":
+		if !m.loading {
+			return m, markFeedReadAllCmd(m.store, m.feed.ID)
+		}
 	case "esc":
 		m.screen = feedsListScreen
 		m.feed = nil
 		m.entry = nil
 		m.entryCursor = 0
+		m.searchQuery = ""
 		return m, loadFeedsCmd(m.store)
 	case "r":
 		m.entryOffset = 0
+		m.searchQuery = ""
 		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit)
 	case "L":
 		if m.entryOffset > 0 && len(m.entries) >= m.entryPageSize {
@@ -505,6 +543,28 @@ func (m model) handleExportPickKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, nil
+}
+
+func (m model) handleSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var tiCmd tea.Cmd
+	m.textInput, tiCmd = m.textInput.Update(msg)
+
+	switch msg.Type {
+	case tea.KeyEnter:
+		query := m.textInput.Value()
+		if query != "" {
+			m.searchQuery = query
+			m.textInput.Blur()
+			m.screen = entriesListScreen
+			return m, tea.Batch(tiCmd, searchEntriesCmd(m.store, query, m.cfg.TUI.EntryLimit))
+		}
+	case tea.KeyEscape:
+		m.textInput.Blur()
+		m.screen = entriesListScreen
+		return m, tiCmd
+	}
+
+	return m, tiCmd
 }
 
 func (m model) handleImportKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

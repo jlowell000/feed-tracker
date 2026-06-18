@@ -586,3 +586,168 @@ func TestListEntriesUnreadAllFeeds(t *testing.T) {
 		t.Errorf("entries[0].Title = %q, want %q", entries[0].Title, "Unread 1")
 	}
 }
+
+func TestSearchEntries_MatchTitle(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test Feed", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feedID, ExternalID: "e1",
+		Title: "Hello World", PublishedAt: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), FetchedAt: time.Now(),
+	})
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feedID, ExternalID: "e2",
+		Title: "Goodbye World", PublishedAt: time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC), FetchedAt: time.Now(),
+	})
+
+	entries, err := s.SearchEntries(ctx, "Hello", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchEntries: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("len(entries) = %d, want 1", len(entries))
+	}
+	if entries[0].Title != "Hello World" {
+		t.Errorf("entries[0].Title = %q, want %q", entries[0].Title, "Hello World")
+	}
+}
+
+func TestSearchEntries_MatchSummary(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test Feed", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feedID, ExternalID: "e1",
+		Title: "Entry", Summary: "This contains a secret keyword",
+		FetchedAt: time.Now(),
+	})
+
+	entries, err := s.SearchEntries(ctx, "secret", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchEntries: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("len(entries) = %d, want 1", len(entries))
+	}
+}
+
+func TestSearchEntries_NoMatch(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test Feed", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feedID, ExternalID: "e1",
+		Title: "Entry", FetchedAt: time.Now(),
+	})
+
+	entries, err := s.SearchEntries(ctx, "nonexistent", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchEntries: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("len(entries) = %d, want 0", len(entries))
+	}
+}
+
+func TestSearchEntries_DefaultLimit(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test Feed", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+
+	for i := range 60 {
+		s.UpsertEntry(ctx, &domain.Entry{
+			ID: uuid.New().String(), FeedID: feedID, ExternalID: fmt.Sprintf("e%d", i),
+			Title: fmt.Sprintf("Match Entry %d", i), FetchedAt: time.Now(),
+		})
+	}
+
+	entries, err := s.SearchEntries(ctx, "Match", 0, 0)
+	if err != nil {
+		t.Fatalf("SearchEntries zero limit: %v", err)
+	}
+	if len(entries) != 50 {
+		t.Errorf("len(entries) = %d, want 50 (default limit)", len(entries))
+	}
+}
+
+func TestMarkFeedRead(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feed1 := &domain.Feed{ID: uuid.New().String(), Title: "Feed 1", FeedURL: "https://a.com/feed", FeedType: domain.FeedTypeRSS}
+	feed2 := &domain.Feed{ID: uuid.New().String(), Title: "Feed 2", FeedURL: "https://b.com/feed", FeedType: domain.FeedTypeRSS}
+	s.AddFeed(ctx, feed1)
+	s.AddFeed(ctx, feed2)
+
+	for _, fid := range []string{feed1.ID, feed2.ID} {
+		for i := range 3 {
+			s.UpsertEntry(ctx, &domain.Entry{
+				ID: uuid.New().String(), FeedID: fid, ExternalID: fmt.Sprintf("e%d", i),
+				Title: "Entry", FetchedAt: time.Now(),
+			})
+		}
+	}
+
+	if err := s.MarkFeedRead(ctx, feed1.ID); err != nil {
+		t.Fatalf("MarkFeedRead: %v", err)
+	}
+
+	unread1, _ := s.ListEntriesUnread(ctx, feed1.ID, 10, 0)
+	if len(unread1) != 0 {
+		t.Errorf("feed1 unread = %d, want 0", len(unread1))
+	}
+
+	unread2, _ := s.ListEntriesUnread(ctx, feed2.ID, 10, 0)
+	if len(unread2) != 3 {
+		t.Errorf("feed2 unread = %d, want 3 (unchanged)", len(unread2))
+	}
+}
+
+func TestMarkAllRead(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feed1 := &domain.Feed{ID: uuid.New().String(), Title: "Feed 1", FeedURL: "https://a.com/feed", FeedType: domain.FeedTypeRSS}
+	feed2 := &domain.Feed{ID: uuid.New().String(), Title: "Feed 2", FeedURL: "https://b.com/feed", FeedType: domain.FeedTypeRSS}
+	s.AddFeed(ctx, feed1)
+	s.AddFeed(ctx, feed2)
+
+	for _, fid := range []string{feed1.ID, feed2.ID} {
+		for i := range 2 {
+			s.UpsertEntry(ctx, &domain.Entry{
+				ID: uuid.New().String(), FeedID: fid, ExternalID: fmt.Sprintf("e%d", i),
+				Title: "Entry", FetchedAt: time.Now(),
+			})
+		}
+	}
+
+	if err := s.MarkAllRead(ctx); err != nil {
+		t.Fatalf("MarkAllRead: %v", err)
+	}
+
+	unread1, _ := s.ListEntriesUnread(ctx, feed1.ID, 10, 0)
+	if len(unread1) != 0 {
+		t.Errorf("feed1 unread = %d, want 0", len(unread1))
+	}
+
+	unread2, _ := s.ListEntriesUnread(ctx, feed2.ID, 10, 0)
+	if len(unread2) != 0 {
+		t.Errorf("feed2 unread = %d, want 0", len(unread2))
+	}
+
+	entries, _ := s.ListEntries(ctx, feed1.ID, 10, 0)
+	if len(entries) != 2 {
+		t.Errorf("entries still exist = %d, want 2", len(entries))
+	}
+}

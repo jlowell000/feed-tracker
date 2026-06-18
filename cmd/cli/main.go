@@ -59,6 +59,8 @@ func main() {
 		runDelete(ctx, *cfgPath, remaining)
 	case "list":
 		runList(ctx, *cfgPath, remaining)
+	case "search":
+		runSearch(ctx, *cfgPath, remaining)
 	case "read":
 		runRead(ctx, *cfgPath, remaining)
 	case "unread":
@@ -91,7 +93,8 @@ Commands:
   export [--output <file>]        Export feeds to OPML file
   delete <name | --feed-id <id>>  Delete a feed and all its entries
   list   [<name> | --feed-id <id>] [--limit <n>] [--unread]  List entries
-  read   <entry-id>  Mark entry as read
+  search [--limit <n>] <query>  Search entries by keyword
+  read   [--all | --feed <name> | --feed-id <id> | <entry-id>]  Mark entries as read
   unread <entry-id>  Mark entry as unread
   completion bash|zsh  Generate shell completion script
 

@@ -59,3 +59,12 @@
 | 55 | Docs: README updated | ✓ | Development section with Makefile table |
 | 56 | Docs: plan.md updated | ✓ | Phase 3b added, phases renumbered |
 | 57 | Build: pre-push hook | ✓ | `.githooks/pre-push` runs `make all`, `core.hooksPath` configured |
+| 58 | Storage: SearchEntries (LIKE-based) | ✓ | `WHERE title LIKE ? OR summary LIKE ?` |
+| 59 | Storage: MarkFeedRead / MarkAllRead | ✓ | Bulk mark-read by feed or all |
+| 60 | CLI: ft search command | ✓ | `ft search [--limit <n>] <query>` |
+| 61 | CLI: ft read --all / --feed / --feed-id | ✓ | Bulk mark-read via CLI |
+| 62 | CLI: ft list --search | ✓ | Filter list output by keyword |
+| 63 | TUI: search screen | ✓ | `s` key opens search input, results replace entry list |
+| 64 | TUI: bulk mark-read | ✓ | `a` marks displayed, `A` marks all in feed |
+| 65 | Tests: storage search + mark-read | ✓ | 6 new tests |
+| 66 | Docs: README, plan.md, PROGRESS.md | ✓ | Phase 4 documented |

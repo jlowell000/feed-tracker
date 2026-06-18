@@ -30,5 +30,9 @@ type Storage interface {
 	ListEntriesUnread(ctx context.Context, feedID string, limit, offset int) ([]*domain.Entry, error)
 	MarkEntryRead(ctx context.Context, entryID string) error
 	MarkEntryUnread(ctx context.Context, entryID string) error
+	MarkFeedRead(ctx context.Context, feedID string) error
+	MarkAllRead(ctx context.Context) error
 	UnreadCountByFeed(ctx context.Context) (map[string]int, error)
+
+	SearchEntries(ctx context.Context, query string, limit, offset int) ([]*domain.Entry, error)
 }

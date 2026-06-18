@@ -120,22 +120,34 @@ tui:
 
 ---
 
-## Phase 4: Search, Filters & Bulk Ops (next)
+## Phase 4: Search & Bulk Mark-Read ✅
 
-### Suggested scope
+> Completed — see below for implementation summary.
 
-| Item | Approach | Impact |
-|---|---|---|
-| **Entry search** | Basic `LIKE` on title/summary, or FTS5 index + `MATCH` for full-text | High — currently no way to find entries |
-| **Entry filter by feed** | Filter entries list to show only entries from selected feed (currently shows all entries for folder) | Medium |
-| **Bulk mark-read** | Mark all entries in a feed (or across all feeds) as read | High — common workflow gap |
-| **Bulk delete** | Delete all entries in a feed, or delete all read entries | Medium |
-| **Keyboard-driven feed switching** | Navigate to a feed's entries directly from the feed list without cursor selection + Enter | Low |
+### What was done
 
-### Preparation
+| Feature | Files changed |
+|---|---|
+| `SearchEntries` (LIKE-based) | `internal/storage/storage.go`, `internal/storage/sqlite.go` |
+| `MarkFeedRead` / `MarkAllRead` | `internal/storage/storage.go`, `internal/storage/sqlite.go` |
+| `ft search <query>` CLI command | `cmd/cli/search.go` (new), `cmd/cli/main.go` |
+| `ft read --all / --feed / --feed-id` | `cmd/cli/read.go` |
+| `ft list --search <q>` | `cmd/cli/list.go` |
+| TUI search screen (`s` key) | `cmd/tui/model.go`, `cmd/tui/update.go`, `cmd/tui/view.go` |
+| TUI bulk mark-read (`a` / `A` keys) | `cmd/tui/update.go`, `cmd/tui/model.go` |
+| Storage tests | `internal/storage/sqlite_test.go` (6 new tests) |
+| Docs | `README.md`, `tasks/plan.md`, `tasks/PROGRESS.md` |
 
-- FTS5 index would need a migration (`CREATE VIRTUAL TABLE entries_fts USING fts5(...)`) + triggers to keep in sync
-- Bulk ops need confirmation dialogs (TUI) or `--force` flags (CLI)
+### Remaining gaps (for future phases)
+
+- FTS5 full-text search (LIKE covers basic case)
+- Bulk delete entries (`ft delete --read`)
+- Entry filter by feed while in All Entries view
+- Keyboard-driven feed switching
+
+---
+
+## Phase 5: Hardening & Polish (next)
 
 ---
 
@@ -159,10 +171,10 @@ tui:
 Items deferred across all completed phases, ordered by estimated value:
 
 | Priority | Item | Phase | Notes |
-|---|---|---|---|
+|---|---|---|---|---|
 | High | Context deadlines + timeouts | P2 | Still `context.Background()` everywhere. Non-trivial — touches all CLI/TUI entry points. |
-| High | Entry search / FTS5 | P3 | Most requested feature for power users. Needs dedicated phase. |
-| High | Bulk operations | P1 | Mark-all-read, delete-all-read. Needs confirmation UX. |
+| High | FTS5 full-text search | P4 | LIKE-based search implemented in Phase 4; upgrade to FTS5 for performance |
+| High | Bulk delete read entries | P4 | Deferred from Phase 4; needs confirmation UX |
 | Medium | Virtualized feed list | P3 | Major refactor of `buildDisplayItems`. Only pays off at 200+ feeds. |
 | Medium | Database maintenance commands | P1 | Vacuum, stats, integrity check. |
 | Low | Lazy content/summary loading | P3 | JOIN elimination already covers main query cost. |
@@ -181,5 +193,5 @@ Items deferred across all completed phases, ordered by estimated value:
 5. ✅ ~~Bounded concurrent fetching~~ (Phase 3 complete)
 6. ✅ ~~Cursor pagination~~ (Phase 3 complete)
 7. ✅ ~~Makefile + build tooling~~ (Phase 3b complete)
-8. **Phase 4** — Search, filters & bulk ops
+8. ✅ ~~Search, filters & bulk mark-read~~ (Phase 4 complete)
 9. **Phase 5** — Hardening & polish

@@ -40,6 +40,8 @@ func (m model) View() string {
 		return m.importDryRunView()
 	case exportPickScreen:
 		return m.exportPickView()
+	case searchScreen:
+		return m.searchView()
 	}
 	return ""
 }
@@ -141,8 +143,12 @@ func (m model) entriesListView() string {
 	if m.showRead {
 		filter = "all"
 	}
-	b.WriteString(headerStyle.Render(fmt.Sprintf(" < %s", title)))
-	b.WriteString(helpStyle.Render(fmt.Sprintf("  [u] %s  [Esc] Back  [q] Quit", filter)))
+	searchLabel := ""
+	if m.searchQuery != "" {
+		searchLabel = fmt.Sprintf(" — search: %q", m.searchQuery)
+	}
+	b.WriteString(headerStyle.Render(fmt.Sprintf(" < %s%s", title, searchLabel)))
+	b.WriteString(helpStyle.Render(fmt.Sprintf("  [u] %s  [s] Search  [a] Mark Read  [Esc] Back  [q] Quit", filter)))
 	b.WriteString("\n\n")
 
 	if len(m.entries) == 0 {
@@ -294,6 +300,9 @@ func (m model) helpView() string {
 		"    r           Refresh current view",
 		"    u           Toggle show read entries",
 		"    L           Load more entries (paginated)",
+		"    s           Search entries by keyword",
+		"    a           Mark all displayed entries as read",
+		"    A           Mark all entries in feed as read",
 		"    o           Open entry URL in browser",
 		"    M           Mark entry unread",
 		"",
@@ -592,6 +601,21 @@ func (m model) exportPickView() string {
 	b.WriteString(normalItemStyle.Render("  u  Ungrouped feeds only"))
 	b.WriteString("\n")
 
+	b.WriteString("\n")
+	b.WriteString(m.statusBar())
+	return b.String()
+}
+
+func (m model) searchView() string {
+	var b strings.Builder
+	b.WriteString(headerStyle.Render(" < Search Entries"))
+	b.WriteString(helpStyle.Render("  [Enter] Search  [Esc] Back  [q] Quit"))
+	b.WriteString("\n\n\n")
+	b.WriteString(detailLabelStyle.Render("  Enter search query:"))
+	b.WriteString("\n\n")
+	b.WriteString("  ")
+	b.WriteString(m.textInput.View())
+	b.WriteString("\n")
 	b.WriteString("\n")
 	b.WriteString(m.statusBar())
 	return b.String()

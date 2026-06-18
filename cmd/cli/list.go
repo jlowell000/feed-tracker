@@ -18,6 +18,7 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 	limit := fs.Int("limit", 20, "max entries to show")
 	unreadOnly := fs.Bool("unread", false, "show only unread entries")
 	detail := fs.Bool("detail", false, "show detailed entry view")
+	search := fs.String("search", "", "search entries by keyword")
 	fs.Parse(args)
 
 	feedName := ""
@@ -49,7 +50,9 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 	}
 
 	var entries []*domain.Entry
-	if *unreadOnly {
+	if *search != "" {
+		entries, err = store.SearchEntries(ctx, *search, *limit, 0)
+	} else if *unreadOnly {
 		entries, err = store.ListEntriesUnread(ctx, resolvedID, *limit, 0)
 	} else {
 		entries, err = store.ListEntries(ctx, resolvedID, *limit, 0)

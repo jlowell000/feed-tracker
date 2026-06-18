@@ -279,6 +279,53 @@ func (s *sqliteStorage) MarkEntryUnread(ctx context.Context, entryID string) err
 	return nil
 }
 
+func (s *sqliteStorage) MarkFeedRead(ctx context.Context, feedID string) error {
+	const q = `UPDATE entries SET read = 1 WHERE feed_id = ? AND read = 0`
+	_, err := s.db.ExecContext(ctx, q, feedID)
+	if err != nil {
+		return fmt.Errorf("mark feed read: %w", err)
+	}
+	return nil
+}
+
+func (s *sqliteStorage) MarkAllRead(ctx context.Context) error {
+	const q = `UPDATE entries SET read = 1 WHERE read = 0`
+	_, err := s.db.ExecContext(ctx, q)
+	if err != nil {
+		return fmt.Errorf("mark all read: %w", err)
+	}
+	return nil
+}
+
+func (s *sqliteStorage) SearchEntries(ctx context.Context, query string, limit, offset int) ([]*domain.Entry, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	pattern := "%" + query + "%"
+	q := `SELECT ` + entryColsPrefixed + `, COALESCE(f.title, '')
+		FROM entries e LEFT JOIN feeds f ON e.feed_id = f.id
+		WHERE e.title LIKE ? OR e.summary LIKE ?
+		ORDER BY e.published_at DESC LIMIT ? OFFSET ?`
+	rows, err := s.db.QueryContext(ctx, q, pattern, pattern, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("search entries: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []*domain.Entry
+	for rows.Next() {
+		e, err := scanEntry(rows)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
+}
+
 type scanner interface {
 	Scan(dest ...any) error
 }
