@@ -1,7 +1,7 @@
 # Progress
 
 | # | Step | Status | Notes |
-|---|---|---|---|---|
+|---|---|---|---|
 | 1 | Scaffold — go mod init, deps, main.go routing | ✓ | |
 | 2 | Domain types — Feed, Entry, FeedType | ✓ | `internal/domain/` |
 | 3 | Config — YAML loading | ✓ | `internal/config/` |
