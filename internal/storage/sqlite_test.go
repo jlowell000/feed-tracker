@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -131,7 +132,7 @@ func TestListEntries(t *testing.T) {
 		Title: "Older", PublishedAt: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), FetchedAt: time.Now(),
 	})
 
-	entries, err := s.ListEntries(ctx, feedID, 10)
+	entries, err := s.ListEntries(ctx, feedID, 10, 0)
 	if err != nil {
 		t.Fatalf("ListEntries: %v", err)
 	}
@@ -309,7 +310,7 @@ func TestAddFolder_DuplicateName(t *testing.T) {
 	}
 }
 
-func TestDeleteFolder_FeedsRetainFolderID(t *testing.T) {
+func TestDeleteFolder_FeedFolderBecomesNull(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 
@@ -333,9 +334,9 @@ func TestDeleteFolder_FeedsRetainFolderID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetFeed: %v", err)
 	}
-	// Foreign keys are not enforced by default, so folder_id persists
-	if got.FolderID == "" {
-		t.Error("expected folder_id to persist after folder delete")
+	// Foreign keys are enforced with ON DELETE SET NULL
+	if got.FolderID != "" {
+		t.Error("expected folder_id to be cleared after folder delete")
 	}
 }
 
@@ -384,7 +385,7 @@ func TestMarkEntryReadUnread(t *testing.T) {
 		t.Fatalf("MarkEntryRead: %v", err)
 	}
 
-	entries, _ := s.ListEntriesUnread(ctx, feedID, 10)
+	entries, _ := s.ListEntriesUnread(ctx, feedID, 10, 0)
 	if len(entries) != 0 {
 		t.Error("expected no unread entries after mark read")
 	}
@@ -393,7 +394,7 @@ func TestMarkEntryReadUnread(t *testing.T) {
 		t.Fatalf("MarkEntryUnread: %v", err)
 	}
 
-	entries, _ = s.ListEntriesUnread(ctx, feedID, 10)
+	entries, _ = s.ListEntriesUnread(ctx, feedID, 10, 0)
 	if len(entries) != 1 {
 		t.Error("expected 1 unread entry after mark unread")
 	}
@@ -420,7 +421,7 @@ func TestListEntriesUnread(t *testing.T) {
 
 	s.MarkEntryRead(ctx, e2ID)
 
-	unread, err := s.ListEntriesUnread(ctx, feedID, 10)
+	unread, err := s.ListEntriesUnread(ctx, feedID, 10, 0)
 	if err != nil {
 		t.Fatalf("ListEntriesUnread: %v", err)
 	}
@@ -429,5 +430,159 @@ func TestListEntriesUnread(t *testing.T) {
 	}
 	if unread[0].Title != "Unread" {
 		t.Errorf("unread[0].Title = %q, want %q", unread[0].Title, "Unread")
+	}
+}
+
+func TestListEntriesAllFeeds(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feed1 := &domain.Feed{ID: uuid.New().String(), Title: "Feed A", FeedURL: "https://a.com/feed", FeedType: domain.FeedTypeRSS}
+	feed2 := &domain.Feed{ID: uuid.New().String(), Title: "Feed B", FeedURL: "https://b.com/feed", FeedType: domain.FeedTypeAtom}
+	s.AddFeed(ctx, feed1)
+	s.AddFeed(ctx, feed2)
+
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feed1.ID, ExternalID: "a1",
+		Title: "Entry A1", PublishedAt: time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC), FetchedAt: time.Now(),
+	})
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feed2.ID, ExternalID: "b1",
+		Title: "Entry B1", PublishedAt: time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC), FetchedAt: time.Now(),
+	})
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feed1.ID, ExternalID: "a2",
+		Title: "Entry A2", PublishedAt: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), FetchedAt: time.Now(),
+	})
+
+	entries, err := s.ListEntries(ctx, "", 10, 0)
+	if err != nil {
+		t.Fatalf("ListEntries all feeds: %v", err)
+	}
+	if len(entries) != 3 {
+		t.Fatalf("len(entries) = %d, want 3", len(entries))
+	}
+	// Ordered by published_at DESC across all feeds
+	if entries[0].Title != "Entry A1" || entries[1].Title != "Entry B1" || entries[2].Title != "Entry A2" {
+		t.Error("entries not in expected order (A1, B1, A2)")
+	}
+	if entries[0].FeedTitle != "Feed A" {
+		t.Errorf("entries[0].FeedTitle = %q, want %q", entries[0].FeedTitle, "Feed A")
+	}
+}
+
+func TestListEntriesZeroLimit(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feed := &domain.Feed{ID: uuid.New().String(), Title: "Test", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS}
+	s.AddFeed(ctx, feed)
+
+	for i := range 60 {
+		s.UpsertEntry(ctx, &domain.Entry{
+			ID: uuid.New().String(), FeedID: feed.ID, ExternalID: fmt.Sprintf("e%d", i),
+			Title: fmt.Sprintf("Entry %d", i), FetchedAt: time.Now(),
+		})
+	}
+
+	entries, err := s.ListEntries(ctx, feed.ID, 0, 0)
+	if err != nil {
+		t.Fatalf("ListEntries zero limit: %v", err)
+	}
+	if len(entries) != 50 {
+		t.Errorf("len(entries) = %d, want 50 (default limit)", len(entries))
+	}
+}
+
+func TestDeleteFeedCascadeDeletesEntries(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feed := &domain.Feed{ID: uuid.New().String(), Title: "Test", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS}
+	s.AddFeed(ctx, feed)
+
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feed.ID, ExternalID: "e1",
+		Title: "Entry", FetchedAt: time.Now(),
+	})
+
+	if err := s.DeleteFeed(ctx, feed.ID); err != nil {
+		t.Fatalf("DeleteFeed: %v", err)
+	}
+
+	entries, err := s.ListEntries(ctx, feed.ID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListEntries after delete: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("len(entries) after delete = %d, want 0", len(entries))
+	}
+
+	_, err = s.GetFeed(ctx, feed.ID)
+	if err == nil {
+		t.Error("expected error getting deleted feed")
+	}
+}
+
+func TestUpdateFeed(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feed := &domain.Feed{
+		ID:      uuid.New().String(),
+		Title:   "Original",
+		FeedURL: "https://example.com/feed",
+		FeedType: domain.FeedTypeRSS,
+	}
+	if err := s.AddFeed(ctx, feed); err != nil {
+		t.Fatalf("AddFeed: %v", err)
+	}
+
+	feed.Title = "Updated"
+	feed.Description = "New description"
+	if err := s.UpdateFeed(ctx, feed); err != nil {
+		t.Fatalf("UpdateFeed: %v", err)
+	}
+
+	got, err := s.GetFeed(ctx, feed.ID)
+	if err != nil {
+		t.Fatalf("GetFeed after update: %v", err)
+	}
+	if got.Title != "Updated" {
+		t.Errorf("Title = %q, want %q", got.Title, "Updated")
+	}
+	if got.Description != "New description" {
+		t.Errorf("Description = %q, want %q", got.Description, "New description")
+	}
+}
+
+func TestListEntriesUnreadAllFeeds(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feed := &domain.Feed{ID: uuid.New().String(), Title: "Test", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS}
+	s.AddFeed(ctx, feed)
+
+	e1 := &domain.Entry{
+		ID: uuid.New().String(), FeedID: feed.ID, ExternalID: "e1",
+		Title: "Unread 1", FetchedAt: time.Now(),
+	}
+	e2 := &domain.Entry{
+		ID: uuid.New().String(), FeedID: feed.ID, ExternalID: "e2",
+		Title: "Read 1", FetchedAt: time.Now(),
+	}
+	s.UpsertEntry(ctx, e1)
+	s.UpsertEntry(ctx, e2)
+	s.MarkEntryRead(ctx, e2.ID)
+
+	entries, err := s.ListEntriesUnread(ctx, "", 10, 0)
+	if err != nil {
+		t.Fatalf("ListEntriesUnread all feeds: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Errorf("len(entries) = %d, want 1", len(entries))
+	}
+	if entries[0].Title != "Unread 1" {
+		t.Errorf("entries[0].Title = %q, want %q", entries[0].Title, "Unread 1")
 	}
 }

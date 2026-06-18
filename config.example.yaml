@@ -4,6 +4,9 @@ database:
 http:
   timeout: 30s
   user_agent: "feed-tracker/0.1"
+  fetch_concurrency: 3
+  fetch_cooldown: 5m
 
 tui:
   entry_limit: 100
+  auto_refresh: 5m

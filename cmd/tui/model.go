@@ -21,7 +21,8 @@ import (
 type itemKind int
 
 const (
-	folderHeaderItem itemKind = iota
+	allEntriesItem itemKind = iota
+	folderHeaderItem
 	feedItem
 )
 
@@ -45,6 +46,8 @@ const (
 	folderRenameScreen
 	folderPickScreen
 	importScreen
+	importDryRunScreen
+	exportPickScreen
 )
 
 type model struct {
@@ -65,9 +68,13 @@ type model struct {
 
 	displayCursor int
 	entryCursor   int
+	entryOffset   int
+	entryPageSize int
 	collapsed      map[string]bool
 	moveFeedID     string
 	renameFolderID string
+	exportFilter   string
+	importSpecs    []opml.FeedSpec
 
 	err    error
 	status string
@@ -77,6 +84,8 @@ type model struct {
 	loading   bool
 	fetching  bool
 	showRead  bool
+
+	autoRefreshInterval time.Duration
 
 	textInput textinput.Model
 	spinner   spinner.Model
@@ -90,6 +99,10 @@ type feedsLoadedMsg struct {
 }
 
 type entriesLoadedMsg struct {
+	entries []*domain.Entry
+}
+
+type moreEntriesLoadedMsg struct {
 	entries []*domain.Entry
 }
 
@@ -137,8 +150,14 @@ type exportCompleteMsg struct {
 }
 
 type importCompleteMsg struct {
-	n   int
-	err error
+	n    int
+	errs int
+	err  error
+}
+
+type importPreviewMsg struct {
+	specs []opml.FeedSpec
+	err   error
 }
 
 type errMsg struct {
@@ -157,23 +176,33 @@ func initialModel(cfg *config.Config, store storage.Storage, tracker *feedtracke
 
 	vp := viewport.New(80, 20)
 
+	pageSize := cfg.TUI.EntryLimit
+	if pageSize <= 0 {
+		pageSize = 50
+	}
 	return model{
-		screen:      feedsListScreen,
-		cfg:         cfg,
-		store:       store,
-		tracker:     tracker,
-		collapsed:   make(map[string]bool),
-		textInput:   ti,
-		spinner:     s,
-		viewport:    vp,
+		screen:              feedsListScreen,
+		cfg:                 cfg,
+		store:               store,
+		tracker:             tracker,
+		collapsed:           make(map[string]bool),
+		textInput:           ti,
+		spinner:             s,
+		viewport:            vp,
+		autoRefreshInterval: cfg.TUI.AutoRefresh,
+		entryPageSize:       pageSize,
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(
+	cmds := []tea.Cmd{
 		loadFeedsCmd(m.store),
 		m.spinner.Tick,
-	)
+	}
+	if m.autoRefreshInterval > 0 {
+		cmds = append(cmds, autoRefreshTick(m.autoRefreshInterval))
+	}
+	return tea.Batch(cmds...)
 }
 
 func loadFeedsCmd(store storage.Storage) tea.Cmd {
@@ -193,14 +222,31 @@ func loadEntriesCmd(store storage.Storage, feedID string, showRead bool, limit i
 		var entries []*domain.Entry
 		var err error
 		if showRead {
-			entries, err = store.ListEntries(ctx, feedID, limit)
+			entries, err = store.ListEntries(ctx, feedID, limit, 0)
 		} else {
-			entries, err = store.ListEntriesUnread(ctx, feedID, limit)
+			entries, err = store.ListEntriesUnread(ctx, feedID, limit, 0)
 		}
 		if err != nil {
 			return errMsg{err}
 		}
 		return entriesLoadedMsg{entries: entries}
+	}
+}
+
+func loadMoreEntriesCmd(store storage.Storage, feedID string, showRead bool, limit, offset int) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		var entries []*domain.Entry
+		var err error
+		if showRead {
+			entries, err = store.ListEntries(ctx, feedID, limit, offset)
+		} else {
+			entries, err = store.ListEntriesUnread(ctx, feedID, limit, offset)
+		}
+		if err != nil {
+			return errMsg{err}
+		}
+		return moreEntriesLoadedMsg{entries: entries}
 	}
 }
 
@@ -309,9 +355,9 @@ func markUnreadAndReloadCmd(store storage.Storage, feedID string, showRead bool,
 		var entries []*domain.Entry
 		var err error
 		if showRead {
-			entries, err = store.ListEntries(ctx, feedID, limit)
+			entries, err = store.ListEntries(ctx, feedID, limit, 0)
 		} else {
-			entries, err = store.ListEntriesUnread(ctx, feedID, limit)
+			entries, err = store.ListEntriesUnread(ctx, feedID, limit, 0)
 		}
 		if err != nil {
 			return errMsg{err}
@@ -329,7 +375,13 @@ func addFeedCmd(tracker *feedtracker.Tracker, url string) tea.Cmd {
 }
 
 func buildDisplayItems(feeds []*domain.Feed, folders []*domain.Folder, counts map[string]int, collapsed map[string]bool) []displayItem {
-	var items []displayItem
+	totalUnread := 0
+	for _, n := range counts {
+		totalUnread += n
+	}
+	items := []displayItem{
+		{kind: allEntriesItem, unread: totalUnread},
+	}
 
 	byFolder := make(map[string][]*domain.Feed)
 	var ungrouped []*domain.Feed
@@ -416,7 +468,7 @@ func exportFeedsCmd(store storage.Storage) tea.Cmd {
 	}
 }
 
-func importFeedsCmd(tracker *feedtracker.Tracker, path string) tea.Cmd {
+func importFeedsCmd(tracker *feedtracker.Tracker, store storage.Storage, path string) tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
 		specs, err := opml.ParseFile(path)
@@ -424,13 +476,33 @@ func importFeedsCmd(tracker *feedtracker.Tracker, path string) tea.Cmd {
 			return importCompleteMsg{err: fmt.Errorf("parse opml: %w", err)}
 		}
 		n := 0
+		errs := 0
 		for _, s := range specs {
-			if _, err := tracker.AddFeed(ctx, s.URL); err != nil {
-				return importCompleteMsg{err: fmt.Errorf("import feed %q: %w", s.URL, err)}
+			feed, addErr := tracker.AddFeed(ctx, s.URL)
+			if addErr != nil {
+				return importCompleteMsg{err: fmt.Errorf("import feed %q: %w", s.URL, addErr)}
 			}
 			n++
+
+			if s.Folder != "" {
+				folder, fErr := store.GetFolderByName(ctx, s.Folder)
+				if fErr != nil {
+					folder = &domain.Folder{
+						ID:        uuid.New().String(),
+						Name:      s.Folder,
+						CreatedAt: time.Now(),
+					}
+					if aErr := store.AddFolder(ctx, folder); aErr != nil {
+						errs++
+						continue
+					}
+				}
+				if sErr := store.SetFeedFolder(ctx, feed.ID, folder.ID); sErr != nil {
+					errs++
+				}
+			}
 		}
-		return importCompleteMsg{n: n}
+		return importCompleteMsg{n: n, errs: errs}
 	}
 }
 
@@ -449,5 +521,68 @@ func fetchAllFeedsCmd(tracker *feedtracker.Tracker, store storage.Storage) tea.C
 		ctx := context.Background()
 		totalNew, err := tracker.FetchAllFeeds(ctx)
 		return fetchCompleteMsg{totalNew: totalNew, err: err}
+	}
+}
+
+func autoRefreshTick(interval time.Duration) tea.Cmd {
+	return tea.Tick(interval, func(t time.Time) tea.Msg {
+		return fetchCompleteMsg{}
+	})
+}
+
+func importPreviewCmd(tracker *feedtracker.Tracker, path string) tea.Cmd {
+	return func() tea.Msg {
+		specs, err := opml.ParseFile(path)
+		return importPreviewMsg{specs: specs, err: err}
+	}
+}
+
+func exportFilteredCmd(store storage.Storage, filter string) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		feeds, err := store.ListFeeds(ctx)
+		if err != nil {
+			return exportCompleteMsg{err: fmt.Errorf("list feeds: %w", err)}
+		}
+		folders, err := store.ListFolders(ctx)
+		if err != nil {
+			return exportCompleteMsg{err: fmt.Errorf("list folders: %w", err)}
+		}
+
+		folderNames := make(map[string]string)
+		for _, f := range folders {
+			folderNames[f.ID] = f.Name
+		}
+
+		var specs []opml.FeedSpec
+		for _, feed := range feeds {
+			if filter == "folders" && feed.FolderID == "" {
+				continue
+			}
+			if filter == "feeds" && feed.FolderID != "" {
+				continue
+			}
+			s := opml.FeedSpec{
+				URL:   feed.FeedURL,
+				Title: feed.Title,
+			}
+			if feed.FolderID != "" {
+				s.Folder = folderNames[feed.FolderID]
+			}
+			specs = append(specs, s)
+		}
+
+		path := fmt.Sprintf("feed-tracker-%s.opml", time.Now().Format("2006-01-02-150405"))
+		f, err := os.Create(path)
+		if err != nil {
+			return exportCompleteMsg{err: fmt.Errorf("create file: %w", err)}
+		}
+		defer f.Close()
+
+		if err := opml.Export(specs, f); err != nil {
+			return exportCompleteMsg{err: fmt.Errorf("export opml: %w", err)}
+		}
+
+		return exportCompleteMsg{path: path}
 	}
 }

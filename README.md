@@ -105,14 +105,17 @@ Use `u` to toggle between showing only unread entries or all entries.
 | `R` | Rename folder |
 | `Enter/Space` | Toggle folder collapse |
 | `f` | Fetch all feeds |
-| `e` | Export feeds to OPML file |
-| `i` | Import feeds from OPML file |
+| `e` | Export feeds to OPML (filter by all/folders/ungrouped) |
+| `i` | Import feeds from OPML (with preview before importing) |
 | `r` | Refresh current view |
 | `u` | Toggle show read entries |
+| `L` | Load more entries (paginated, in entry list) |
 | `M` | Mark entry unread (in entry detail) |
 | `o` | Open entry URL in browser |
 | `?` | Toggle help overlay |
 | `q/Ctrl+C` | Quit |
+
+The top entry in the feed list is **All Entries** — select it to see entries from all feeds at once.
 
 ## Configuration
 
@@ -125,9 +128,12 @@ database:
 http:
   timeout: 30s
   user_agent: "feed-tracker/0.1"
+  fetch_concurrency: 3   # concurrent fetches during "fetch all"
+  fetch_cooldown: 5m     # skip feeds fetched within this duration
 
 tui:
-  entry_limit: 100      # max entries loaded per feed in TUI
+  entry_limit: 100      # max entries loaded per page in TUI
+  auto_refresh: 5m      # auto-fetch interval (e.g. 5m, 30m, 0 to disable)
 ```
 
 ## Development

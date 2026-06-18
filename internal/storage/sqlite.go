@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jlowell000/feed-tracker/internal/domain"
@@ -21,6 +22,17 @@ func New(path string) (Storage, error) {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 	db.SetMaxOpenConns(1)
+
+	if _, err := db.Exec(`PRAGMA journal_mode=WAL`); err != nil {
+		return nil, fmt.Errorf("enable wal: %w", err)
+	}
+	if _, err := db.Exec(`PRAGMA foreign_keys=ON`); err != nil {
+		return nil, fmt.Errorf("enable foreign keys: %w", err)
+	}
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("ping db: %w", err)
+	}
+
 	return &sqliteStorage{db: db}, nil
 }
 
@@ -33,9 +45,23 @@ func (s *sqliteStorage) Migrate(ctx context.Context) error {
 		return fmt.Errorf("migrate: %w", err)
 	}
 
-	s.db.ExecContext(ctx, `ALTER TABLE entries ADD COLUMN read INTEGER NOT NULL DEFAULT 0`)
-	s.db.ExecContext(ctx, `ALTER TABLE feeds ADD COLUMN folder_id TEXT DEFAULT '' REFERENCES folders(id) ON DELETE SET NULL`)
+	for _, alter := range []string{
+		`ALTER TABLE entries ADD COLUMN read INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE feeds ADD COLUMN folder_id TEXT DEFAULT '' REFERENCES folders(id) ON DELETE SET NULL`,
+	} {
+		if _, err := s.db.ExecContext(ctx, alter); err != nil {
+			// Ignore "duplicate column" errors on re-run
+			if !isDupColumnError(err) {
+				return fmt.Errorf("migrate alter: %w", err)
+			}
+		}
+	}
 	return nil
+}
+
+func isDupColumnError(err error) bool {
+	return err != nil && (strings.Contains(err.Error(), "duplicate column") ||
+		strings.Contains(err.Error(), "already exists"))
 }
 
 func (s *sqliteStorage) AddFeed(ctx context.Context, feed *domain.Feed) error {
@@ -44,7 +70,7 @@ func (s *sqliteStorage) AddFeed(ctx context.Context, feed *domain.Feed) error {
 	_, err := s.db.ExecContext(ctx, q,
 		feed.ID, feed.Title, feed.Description, feed.SiteURL, feed.FeedURL,
 		string(feed.FeedType), feed.ETag, feed.LastModified,
-		feed.FolderID,
+		nullIfEmpty(feed.FolderID),
 		feed.CreatedAt.Format(time.RFC3339), feed.UpdatedAt.Format(time.RFC3339),
 		feed.LastFetched.Format(time.RFC3339),
 	)
@@ -97,7 +123,7 @@ func (s *sqliteStorage) UpdateFeed(ctx context.Context, feed *domain.Feed) error
 	const q = `UPDATE feeds SET title=?, description=?, site_url=?, feed_type=?, etag=?, last_modified=?, folder_id=?, updated_at=?, last_fetched=? WHERE id=?`
 	_, err := s.db.ExecContext(ctx, q,
 		feed.Title, feed.Description, feed.SiteURL, string(feed.FeedType),
-		feed.ETag, feed.LastModified, feed.FolderID,
+		feed.ETag, feed.LastModified, nullIfEmpty(feed.FolderID),
 		feed.UpdatedAt.Format(time.RFC3339), feed.LastFetched.Format(time.RFC3339),
 		feed.ID,
 	)
@@ -137,24 +163,30 @@ func (s *sqliteStorage) UpsertEntry(ctx context.Context, entry *domain.Entry) (b
 	return n > 0, nil
 }
 
-func (s *sqliteStorage) ListEntries(ctx context.Context, feedID string, limit int) ([]*domain.Entry, error) {
+const entryCols = `id, feed_id, external_id, title, url, summary, content, author, published_at, updated_at, fetched_at, read`
+const entryColsPrefixed = `e.id, e.feed_id, e.external_id, e.title, e.url, e.summary, e.content, e.author, e.published_at, e.updated_at, e.fetched_at, e.read`
+
+func (s *sqliteStorage) ListEntries(ctx context.Context, feedID string, limit, offset int) ([]*domain.Entry, error) {
 	if limit <= 0 {
 		limit = 50
 	}
-	var q string
-	var args []any
-	if feedID == "" {
-		q = `SELECT e.id, e.feed_id, e.external_id, e.title, e.url, e.summary, e.content, e.author, e.published_at, e.updated_at, e.fetched_at, e.read, COALESCE(f.title, '')
-			FROM entries e LEFT JOIN feeds f ON e.feed_id = f.id
-			ORDER BY e.published_at DESC LIMIT ?`
-		args = []any{limit}
-	} else {
-		q = `SELECT e.id, e.feed_id, e.external_id, e.title, e.url, e.summary, e.content, e.author, e.published_at, e.updated_at, e.fetched_at, e.read, COALESCE(f.title, '')
-			FROM entries e LEFT JOIN feeds f ON e.feed_id = f.id
-			WHERE e.feed_id = ? ORDER BY e.published_at DESC LIMIT ?`
-		args = []any{feedID, limit}
+	if offset < 0 {
+		offset = 0
 	}
-	rows, err := s.db.QueryContext(ctx, q, args...)
+	var rows *sql.Rows
+	var err error
+	if feedID == "" {
+		q := `SELECT ` + entryColsPrefixed + `, COALESCE(f.title, '')
+			FROM entries e LEFT JOIN feeds f ON e.feed_id = f.id
+			ORDER BY e.published_at DESC LIMIT ? OFFSET ?`
+		rows, err = s.db.QueryContext(ctx, q, limit, offset)
+	} else {
+		q := `SELECT ` + entryCols + `, '' as feed_title
+			FROM entries
+			WHERE feed_id = ?
+			ORDER BY published_at DESC LIMIT ? OFFSET ?`
+		rows, err = s.db.QueryContext(ctx, q, feedID, limit, offset)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("list entries: %w", err)
 	}
@@ -171,26 +203,28 @@ func (s *sqliteStorage) ListEntries(ctx context.Context, feedID string, limit in
 	return entries, rows.Err()
 }
 
-func (s *sqliteStorage) ListEntriesUnread(ctx context.Context, feedID string, limit int) ([]*domain.Entry, error) {
+func (s *sqliteStorage) ListEntriesUnread(ctx context.Context, feedID string, limit, offset int) ([]*domain.Entry, error) {
 	if limit <= 0 {
 		limit = 50
 	}
-	var q string
-	var args []any
+	if offset < 0 {
+		offset = 0
+	}
+	var rows *sql.Rows
+	var err error
 	if feedID == "" {
-		q = `SELECT e.id, e.feed_id, e.external_id, e.title, e.url, e.summary, e.content, e.author, e.published_at, e.updated_at, e.fetched_at, e.read, COALESCE(f.title, '')
+		q := `SELECT ` + entryColsPrefixed + `, COALESCE(f.title, '')
 			FROM entries e LEFT JOIN feeds f ON e.feed_id = f.id
 			WHERE e.read = 0
-			ORDER BY e.published_at DESC LIMIT ?`
-		args = []any{limit}
+			ORDER BY e.published_at DESC LIMIT ? OFFSET ?`
+		rows, err = s.db.QueryContext(ctx, q, limit, offset)
 	} else {
-		q = `SELECT e.id, e.feed_id, e.external_id, e.title, e.url, e.summary, e.content, e.author, e.published_at, e.updated_at, e.fetched_at, e.read, COALESCE(f.title, '')
-			FROM entries e LEFT JOIN feeds f ON e.feed_id = f.id
-			WHERE e.feed_id = ? AND e.read = 0
-			ORDER BY e.published_at DESC LIMIT ?`
-		args = []any{feedID, limit}
+		q := `SELECT ` + entryCols + `, '' as feed_title
+			FROM entries
+			WHERE feed_id = ? AND read = 0
+			ORDER BY published_at DESC LIMIT ? OFFSET ?`
+		rows, err = s.db.QueryContext(ctx, q, feedID, limit, offset)
 	}
-	rows, err := s.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list entries unread: %w", err)
 	}
@@ -252,16 +286,27 @@ type scanner interface {
 func scanFeed(row scanner) (*domain.Feed, error) {
 	var f domain.Feed
 	var feedType, createdAt, updatedAt, lastFetched string
+	var folderID sql.NullString
 	err := row.Scan(&f.ID, &f.Title, &f.Description, &f.SiteURL, &f.FeedURL,
-		&feedType, &f.ETag, &f.LastModified, &f.FolderID,
+		&feedType, &f.ETag, &f.LastModified, &folderID,
 		&createdAt, &updatedAt, &lastFetched)
 	if err != nil {
 		return nil, fmt.Errorf("scan feed: %w", err)
 	}
 	f.FeedType = domain.FeedType(feedType)
-	f.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-	f.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-	f.LastFetched, _ = time.Parse(time.RFC3339, lastFetched)
+	f.FolderID = folderID.String
+	f.CreatedAt, err = time.Parse(time.RFC3339, createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("parse feed created_at: %w", err)
+	}
+	f.UpdatedAt, err = time.Parse(time.RFC3339, updatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("parse feed updated_at: %w", err)
+	}
+	f.LastFetched, err = time.Parse(time.RFC3339, lastFetched)
+	if err != nil {
+		return nil, fmt.Errorf("parse feed last_fetched: %w", err)
+	}
 	return &f, nil
 }
 
@@ -318,7 +363,7 @@ func (s *sqliteStorage) DeleteFolder(ctx context.Context, id string) error {
 
 func (s *sqliteStorage) SetFeedFolder(ctx context.Context, feedID, folderID string) error {
 	const q = `UPDATE feeds SET folder_id = ? WHERE id = ?`
-	_, err := s.db.ExecContext(ctx, q, folderID, feedID)
+	_, err := s.db.ExecContext(ctx, q, nullIfEmpty(folderID), feedID)
 	if err != nil {
 		return fmt.Errorf("set feed folder: %w", err)
 	}
@@ -335,9 +380,18 @@ func scanEntry(row scanner) (*domain.Entry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("scan entry: %w", err)
 	}
-	e.PublishedAt, _ = parseTime(publishedAt)
-	e.UpdatedAt, _ = parseTime(updatedAt)
-	e.FetchedAt, _ = time.Parse(time.RFC3339, fetchedAt)
+	e.PublishedAt, err = parseTime(publishedAt)
+	if err != nil {
+		return nil, fmt.Errorf("parse entry published_at: %w", err)
+	}
+	e.UpdatedAt, err = parseTime(updatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("parse entry updated_at: %w", err)
+	}
+	e.FetchedAt, err = time.Parse(time.RFC3339, fetchedAt)
+	if err != nil {
+		return nil, fmt.Errorf("parse entry fetched_at: %w", err)
+	}
 	e.Read = read != 0
 	return &e, nil
 }
@@ -354,4 +408,11 @@ func parseTime(s string) (time.Time, error) {
 		return time.Time{}, nil
 	}
 	return time.Parse(time.RFC3339, s)
+}
+
+func nullIfEmpty(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
 }

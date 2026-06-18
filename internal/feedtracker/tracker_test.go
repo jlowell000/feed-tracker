@@ -283,3 +283,66 @@ func TestFetchAllFeeds(t *testing.T) {
 		t.Errorf("feed titles = %q, %q", feed1.Title, feed2.Title)
 	}
 }
+
+func TestAddFeed_NetworkError(t *testing.T) {
+	ctx := context.Background()
+	store, err := storage.New(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	store.Migrate(ctx)
+
+	cfg := &config.Config{
+		HTTP: config.HTTPConfig{Timeout: 5 * time.Second, UserAgent: "test/1.0"},
+	}
+	tracker := New(cfg, store)
+
+	_, err = tracker.AddFeed(ctx, "http://127.0.0.1:1/nonexistent")
+	if err == nil {
+		t.Fatal("expected error for unreachable URL")
+	}
+}
+
+func TestAddFeed_MalformedFeed(t *testing.T) {
+	ctx := context.Background()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "not a feed at all")
+	}))
+	defer ts.Close()
+
+	store, err := storage.New(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	store.Migrate(ctx)
+
+	cfg := &config.Config{
+		HTTP: config.HTTPConfig{Timeout: 5 * time.Second, UserAgent: "test/1.0"},
+	}
+	tracker := New(cfg, store)
+
+	_, err = tracker.AddFeed(ctx, ts.URL)
+	if err == nil {
+		t.Fatal("expected error for malformed feed")
+	}
+}
+
+func TestFetchFeed_NetworkError(t *testing.T) {
+	ctx := context.Background()
+	tracker, ts := newTestTracker(t)
+
+	feed, err := tracker.AddFeed(ctx, ts.URL)
+	if err != nil {
+		t.Fatalf("AddFeed: %v", err)
+	}
+
+	// Override the feed URL to point nowhere
+	feed.FeedURL = "http://127.0.0.1:1/bogus"
+	_, err = tracker.FetchFeed(ctx, feed)
+	if err == nil {
+		t.Fatal("expected error for unreachable feed URL")
+	}
+}

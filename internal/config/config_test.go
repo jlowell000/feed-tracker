@@ -47,6 +47,36 @@ func TestSetDefaults(t *testing.T) {
 	if cfg.HTTP.UserAgent == "" {
 		t.Error("HTTP.UserAgent should have default")
 	}
+	if cfg.TUI.EntryLimit <= 0 {
+		t.Error("TUI.EntryLimit should have default")
+	}
+	if cfg.TUI.AutoRefresh != 0 {
+		t.Errorf("TUI.AutoRefresh = %v, want 0", cfg.TUI.AutoRefresh)
+	}
+}
+
+func TestLoadWithTUIConfig(t *testing.T) {
+	yaml := `tui:
+  entry_limit: 50
+  auto_refresh: 10m
+`
+	f, err := os.CreateTemp(t.TempDir(), "config*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	f.WriteString(yaml)
+
+	cfg, err := Load(f.Name())
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.TUI.EntryLimit != 50 {
+		t.Errorf("TUI.EntryLimit = %d, want 50", cfg.TUI.EntryLimit)
+	}
+	if cfg.TUI.AutoRefresh != 10*time.Minute {
+		t.Errorf("TUI.AutoRefresh = %v, want 10m", cfg.TUI.AutoRefresh)
+	}
 }
 
 func TestLoadMissingFile(t *testing.T) {

@@ -26,8 +26,8 @@ type Storage interface {
 	DeleteFeed(ctx context.Context, id string) error
 
 	UpsertEntry(ctx context.Context, entry *domain.Entry) (bool, error)
-	ListEntries(ctx context.Context, feedID string, limit int) ([]*domain.Entry, error)
-	ListEntriesUnread(ctx context.Context, feedID string, limit int) ([]*domain.Entry, error)
+	ListEntries(ctx context.Context, feedID string, limit, offset int) ([]*domain.Entry, error)
+	ListEntriesUnread(ctx context.Context, feedID string, limit, offset int) ([]*domain.Entry, error)
 	MarkEntryRead(ctx context.Context, entryID string) error
 	MarkEntryUnread(ctx context.Context, entryID string) error
 	UnreadCountByFeed(ctx context.Context) (map[string]int, error)

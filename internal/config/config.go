@@ -19,12 +19,15 @@ type DatabaseConfig struct {
 }
 
 type HTTPConfig struct {
-	Timeout   time.Duration `yaml:"timeout"`
-	UserAgent string        `yaml:"user_agent"`
+	Timeout          time.Duration `yaml:"timeout"`
+	UserAgent        string        `yaml:"user_agent"`
+	FetchConcurrency int           `yaml:"fetch_concurrency"`
+	FetchCooldown    time.Duration `yaml:"fetch_cooldown"`
 }
 
 type TUIConfig struct {
-	EntryLimit int `yaml:"entry_limit"`
+	EntryLimit   int           `yaml:"entry_limit"`
+	AutoRefresh  time.Duration `yaml:"auto_refresh"`
 }
 
 func (c *Config) SetDefaults() {
@@ -36,6 +39,9 @@ func (c *Config) SetDefaults() {
 	}
 	if c.HTTP.UserAgent == "" {
 		c.HTTP.UserAgent = "feed-tracker/0.1"
+	}
+	if c.HTTP.FetchConcurrency <= 0 {
+		c.HTTP.FetchConcurrency = 3
 	}
 	if c.TUI.EntryLimit <= 0 {
 		c.TUI.EntryLimit = 100

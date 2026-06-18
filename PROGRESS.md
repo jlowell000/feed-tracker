@@ -36,3 +36,22 @@
 | 32 | CLI: list --detail mode | ✓ | `ft list --detail` shows author, content snippet, read status |
 | 33 | TUI: configurable entry limit | ✓ | `tui.entry_limit` in config replaces hardcoded 100 |
 | 34 | CLI: export --folders-only / --feeds-only | ✓ | Selective export flags |
+| 35 | TUI: auto-refresh with configurable interval | ✓ | `tui.auto_refresh` config, periodic fetch |
+| 36 | TUI: global "All Entries" view | ✓ | Shows entries across all feeds in feed list |
+| 37 | TUI: import dry-run preview | ✓ | Parses OPML, shows preview before importing |
+| 38 | TUI: export folder-only / feeds-only filter | ✓ | Pick screen: all, folders only, ungrouped only |
+| 39 | Storage: WAL mode + foreign key enforcement | ✓ | `PRAGMA journal_mode=WAL`, `PRAGMA foreign_keys=ON` in `New()` |
+| 40 | Storage: composite index (feed_id, published_at) | ✓ | `idx_entries_feed_published` |
+| 41 | Storage: time parse errors no longer silent | ✓ | `scanFeed`/`scanEntry` propagate parse errors |
+| 42 | Storage: migration ALTER TABLE errors handled | ✓ | `isDupColumnError` ignores re-run errors, catches real failures |
+| 43 | Storage: DB Ping on open | ✓ | `db.Ping()` in `New()` |
+| 44 | Completion scripts: all missing commands added | ✓ | `folder`, `import`, `export`, `delete`, `read`, `unread` |
+| 45 | Tests: storage all-feeds + cascade + UpdateFeed | ✓ | 7 new tests added |
+| 46 | Tests: config TUI defaults + auto_refresh | ✓ | `TestLoadWithTUIConfig` |
+| 47 | Tests: feedtracker network/parse error handling | ✓ | `TestAddFeed_NetworkError`, `TestAddFeed_MalformedFeed`, `TestFetchFeed_NetworkError` |
+| 48 | Tests: parser edge cases | ✓ | empty body, no items, malformed dates |
+| 49 | Perf: entry list query without JOIN (known feedID) | ✓ | `entryCols` constant, no LEFT JOIN per-feed |
+| 50 | Perf: cursor-based pagination in TUI entry list | ✓ | `L` key loads next page, `entryOffset` tracking |
+| 51 | Perf: bounded concurrency for FetchAllFeeds | ✓ | Worker pool via `fetch_concurrency`, `sync.WaitGroup` |
+| 52 | Perf: feed staleness check | ✓ | `fetch_cooldown` config skips recently-fetched feeds |
+| 53 | Perf: offset support in ListEntries/ListEntriesUnread | ✓ | `LIMIT ? OFFSET ?` in storage layer |

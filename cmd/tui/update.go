@@ -106,18 +106,41 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case importPreviewMsg:
+		m.loading = false
+		if msg.err != nil {
+			m.status = fmt.Sprintf("Error: %v", msg.err)
+			m.screen = feedsListScreen
+		} else {
+			m.importSpecs = msg.specs
+			m.screen = importDryRunScreen
+		}
+		return m, nil
+
 	case importCompleteMsg:
 		m.loading = false
+		m.importSpecs = nil
+		m.screen = feedsListScreen
 		if msg.err != nil {
 			m.status = fmt.Sprintf("Import error: %v", msg.err)
 		} else {
-			m.status = fmt.Sprintf("Imported %d feeds", msg.n)
+			s := fmt.Sprintf("Imported %d feeds", msg.n)
+			if msg.errs > 0 {
+				s += fmt.Sprintf(" (%d folder errors)", msg.errs)
+			}
+			m.status = s
 		}
 		return m, loadFeedsCmd(m.store)
 
 	case entriesLoadedMsg:
 		m.entries = msg.entries
 		m.entryCursor = 0
+		m.entryOffset = len(msg.entries)
+		return m, nil
+
+	case moreEntriesLoadedMsg:
+		m.entries = append(m.entries, msg.entries...)
+		m.entryOffset = len(m.entries)
 		return m, nil
 
 	case feedAddedMsg:
@@ -136,7 +159,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.status = fmt.Sprintf("Fetched all — %d new entries", msg.totalNew)
 		}
-		return m, loadFeedsCmd(m.store)
+		cmds := []tea.Cmd{loadFeedsCmd(m.store)}
+		if m.autoRefreshInterval > 0 {
+			cmds = append(cmds, autoRefreshTick(m.autoRefreshInterval))
+		}
+		return m, tea.Batch(cmds...)
 
 	case errMsg:
 		m.loading = false
@@ -170,6 +197,10 @@ func (m model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleFolderPickKey(msg)
 	case importScreen:
 		return m.handleImportKey(msg)
+	case importDryRunScreen:
+		return m.handleImportDryRunKey(msg)
+	case exportPickScreen:
+		return m.handleExportPickKey(msg)
 	}
 	return m, nil
 }
@@ -190,6 +221,11 @@ func (m model) handleFeedsListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		item := m.displayItems[m.displayCursor]
 		switch item.kind {
+		case allEntriesItem:
+			m.feed = nil
+			m.prevScreen = m.screen
+			m.screen = entriesListScreen
+			return m, loadEntriesCmd(m.store, "", m.showRead, m.cfg.TUI.EntryLimit)
 		case folderHeaderItem:
 			if item.folder != nil {
 				id := item.folder.ID
@@ -210,9 +246,9 @@ func (m model) handleFeedsListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "e":
 		if !m.loading && !m.fetching && len(m.feeds) > 0 {
-			m.loading = true
-			m.status = "Exporting feeds..."
-			return m, exportFeedsCmd(m.store)
+			m.prevScreen = m.screen
+			m.exportFilter = ""
+			m.screen = exportPickScreen
 		}
 	case "i":
 		m.prevScreen = m.screen
@@ -319,7 +355,12 @@ func (m model) handleEntriesListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.entryCursor = 0
 		return m, loadFeedsCmd(m.store)
 	case "r":
+		m.entryOffset = 0
 		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit)
+	case "L":
+		if m.entryOffset > 0 && len(m.entries) >= m.entryPageSize {
+			return m, loadMoreEntriesCmd(m.store, m.feed.ID, m.showRead, m.entryPageSize, m.entryOffset)
+		}
 	case "?":
 		m.prevScreen = m.screen
 		m.screen = helpScreen
@@ -421,6 +462,51 @@ func (m model) handleFolderRenameKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, tiCmd
 }
 
+func (m model) handleImportDryRunKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "enter":
+		if len(m.importSpecs) > 0 {
+			m.loading = true
+			m.status = "Importing feeds..."
+			path := m.textInput.Value()
+			return m, importFeedsCmd(m.tracker, m.store, path)
+		}
+		return m, nil
+	case "esc", "q":
+		m.importSpecs = nil
+		m.screen = feedsListScreen
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m model) handleExportPickKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "a":
+		m.exportFilter = ""
+		m.loading = true
+		m.status = "Exporting feeds..."
+		m.screen = feedsListScreen
+		return m, exportFilteredCmd(m.store, "")
+	case "f":
+		m.exportFilter = "folders"
+		m.loading = true
+		m.status = "Exporting feeds..."
+		m.screen = feedsListScreen
+		return m, exportFilteredCmd(m.store, "folders")
+	case "u":
+		m.exportFilter = "feeds"
+		m.loading = true
+		m.status = "Exporting feeds..."
+		m.screen = feedsListScreen
+		return m, exportFilteredCmd(m.store, "feeds")
+	case "esc":
+		m.screen = feedsListScreen
+		return m, nil
+	}
+	return m, nil
+}
+
 func (m model) handleImportKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	var tiCmd tea.Cmd
 	m.textInput, tiCmd = m.textInput.Update(msg)
@@ -430,10 +516,9 @@ func (m model) handleImportKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		path := m.textInput.Value()
 		if path != "" {
 			m.loading = true
-			m.status = "Importing feeds..."
+			m.status = "Parsing OPML..."
 			m.textInput.Blur()
-			m.screen = feedsListScreen
-			return m, tea.Batch(tiCmd, importFeedsCmd(m.tracker, path))
+			return m, tea.Batch(tiCmd, importPreviewCmd(m.tracker, path))
 		}
 	case tea.KeyEscape:
 		m.textInput.Blur()

@@ -40,4 +40,5 @@ CREATE TABLE IF NOT EXISTS entries (
 
 CREATE INDEX IF NOT EXISTS idx_entries_feed_id ON entries(feed_id);
 CREATE INDEX IF NOT EXISTS idx_entries_published ON entries(published_at);
+CREATE INDEX IF NOT EXISTS idx_entries_feed_published ON entries(feed_id, published_at DESC);
 `

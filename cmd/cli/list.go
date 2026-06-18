@@ -50,9 +50,9 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 
 	var entries []*domain.Entry
 	if *unreadOnly {
-		entries, err = store.ListEntriesUnread(ctx, resolvedID, *limit)
+		entries, err = store.ListEntriesUnread(ctx, resolvedID, *limit, 0)
 	} else {
-		entries, err = store.ListEntries(ctx, resolvedID, *limit)
+		entries, err = store.ListEntries(ctx, resolvedID, *limit, 0)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: list entries: %v\n", err)

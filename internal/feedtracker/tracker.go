@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,6 +27,14 @@ func New(cfg *config.Config, store storage.Storage) *Tracker {
 		store:   store,
 		fetcher: fetcher.New(cfg.HTTP),
 	}
+}
+
+func (t *Tracker) shouldFetch(feed *domain.Feed) bool {
+	cooldown := t.cfg.HTTP.FetchCooldown
+	if cooldown <= 0 {
+		return true
+	}
+	return time.Since(feed.LastFetched) >= cooldown
 }
 
 func (t *Tracker) AddFeed(ctx context.Context, feedURL string) (*domain.Feed, error) {
@@ -122,14 +131,38 @@ func (t *Tracker) FetchAllFeeds(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("list feeds: %w", err)
 	}
 
+	concurrency := t.cfg.HTTP.FetchConcurrency
+	if concurrency <= 0 {
+		concurrency = 3
+	}
+
+	sem := make(chan struct{}, concurrency)
+	var mu sync.Mutex
 	total := 0
+	var wg sync.WaitGroup
+
 	for _, feed := range feeds {
-		n, err := t.FetchFeed(ctx, feed)
-		if err != nil {
-			log.Printf("error fetching %s (%s): %v", feed.Title, feed.FeedURL, err)
+		if !t.shouldFetch(feed) {
 			continue
 		}
-		total += n
+
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(f *domain.Feed) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			n, err := t.FetchFeed(ctx, f)
+			if err != nil {
+				log.Printf("error fetching %s (%s): %v", f.Title, f.FeedURL, err)
+				return
+			}
+			mu.Lock()
+			total += n
+			mu.Unlock()
+		}(feed)
 	}
+
+	wg.Wait()
 	return total, nil
 }

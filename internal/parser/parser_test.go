@@ -138,6 +138,59 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
+func TestParse_EmptyBody(t *testing.T) {
+	_, err := Parse([]byte(""), "https://example.com/feed", domain.FeedTypeRSS)
+	if err == nil {
+		t.Error("expected error for empty body")
+	}
+}
+
+func TestParse_NoItems(t *testing.T) {
+	rss := `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+<title>Empty Feed</title>
+<description>No items</description>
+<link>https://example.com</link>
+</channel>
+</rss>`
+	parsed, err := Parse([]byte(rss), "https://example.com/feed", domain.FeedTypeRSS)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if len(parsed.Entries) != 0 {
+		t.Errorf("len(Entries) = %d, want 0", len(parsed.Entries))
+	}
+	if parsed.Feed.Title != "Empty Feed" {
+		t.Errorf("Feed.Title = %q, want %q", parsed.Feed.Title, "Empty Feed")
+	}
+}
+
+func TestParse_MalformedDates(t *testing.T) {
+	rss := `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+<title>Test</title>
+<item>
+<title>Item 1</title>
+<link>https://example.com/1</link>
+<guid>uuid-1</guid>
+<pubDate>not a date</pubDate>
+</item>
+</channel>
+</rss>`
+	parsed, err := Parse([]byte(rss), "https://example.com/feed", domain.FeedTypeRSS)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if len(parsed.Entries) != 1 {
+		t.Fatalf("len(Entries) = %d, want 1", len(parsed.Entries))
+	}
+	if !parsed.Entries[0].PublishedAt.IsZero() {
+		t.Error("expected zero published_at for malformed date")
+	}
+}
+
 func TestParseWithGofeed_InvalidXML(t *testing.T) {
 	_, err := parseWithGofeed([]byte("not xml"), "")
 	if err == nil {

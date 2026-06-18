@@ -22,12 +22,12 @@ const bashCompletionScript = `_ft_completions() {
     _init_completion || return
 
     if [ $cword -eq 1 ]; then
-        COMPREPLY=($(compgen -W "migrate add fetch feeds list completion" -- "$cur"))
+        COMPREPLY=($(compgen -W "migrate add fetch feeds folder import export delete list read unread completion" -- "$cur"))
         return
     fi
 
     case ${words[1]} in
-        list|fetch)
+        list|fetch|delete)
             case $prev in
                 --feed-id)
                     return
@@ -40,12 +40,32 @@ const bashCompletionScript = `_ft_completions() {
                     ;;
             esac
             ;;
+        folder)
+            if [ $cword -eq 2 ]; then
+                COMPREPLY=($(compgen -W "create delete rename move" -- "$cur"))
+            fi
+            ;;
+        import)
+            if [ $cword -eq 2 ]; then
+                COMPREPLY=($(compgen -f -- "$cur"))
+            fi
+            if [[ "$prev" == "--dry-run" ]]; then
+                COMPREPLY=($(compgen -f -- "$cur"))
+            fi
+            ;;
+        export)
+            case $prev in
+                --output)
+                    COMPREPLY=($(compgen -f -- "$cur"))
+                    ;;
+            esac
+            ;;
         completion)
             if [ $cword -eq 2 ]; then
                 COMPREPLY=($(compgen -W "bash zsh" -- "$cur"))
             fi
             ;;
-        add)
+        add|read|unread)
             ;;
     esac
 } &&
@@ -61,7 +81,13 @@ _ft() {
         'add:Add a new feed by URL'
         'fetch:Fetch new entries from feed(s)'
         'feeds:List all tracked feeds'
+        'folder:Manage folders (create/delete/rename/move)'
+        'import:Import feeds from OPML file'
+        'export:Export feeds to OPML file'
+        'delete:Delete a feed and all its entries'
         'list:List entries'
+        'read:Mark entry as read'
+        'unread:Mark entry as unread'
         'completion:Generate shell completion script'
     )
 
@@ -76,10 +102,21 @@ _ft() {
             ;;
         args)
             case $words[1] in
-                list|fetch)
+                list|fetch|delete)
                     _alternative \
                         'feed-name::feed name:($(ft feeds --names 2>/dev/null))' \
                         'feed-id:feed id:'
+                    ;;
+                folder)
+                    _arguments '2:subcommand:(create delete rename move)'
+                    ;;
+                import)
+                    _arguments '--dry-run[dry run preview]' '1:opml file:_files'
+                    ;;
+                export)
+                    _arguments '--output[output file]:file:_files' \
+                        '--folders-only[export only feeds in folders]' \
+                        '--feeds-only[export only feeds without a folder]'
                     ;;
                 completion)
                     _arguments '2:shell:(bash zsh)'

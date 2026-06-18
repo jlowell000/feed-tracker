@@ -65,4 +65,10 @@ var (
 	emptyStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#888888")).
 			Italic(true)
+
+	centerStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#00BFFF")).
+			Bold(true).
+			Align(lipgloss.Center).
+			Width(60)
 )

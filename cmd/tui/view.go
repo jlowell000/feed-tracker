@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"os/exec"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/jlowell000/feed-tracker/internal/domain"
+	"github.com/jlowell000/feed-tracker/internal/opml"
 )
 
 func (m model) View() string {
@@ -34,6 +36,10 @@ func (m model) View() string {
 		return m.folderPickView()
 	case importScreen:
 		return m.importView()
+	case importDryRunScreen:
+		return m.importDryRunView()
+	case exportPickScreen:
+		return m.exportPickView()
 	}
 	return ""
 }
@@ -45,7 +51,7 @@ func (m model) feedsListView() string {
 	b.WriteString(helpStyle.Render("  [?] Help  [e] Export  [i] Import  [q] Quit"))
 	b.WriteString("\n\n")
 
-	if len(m.displayItems) == 0 {
+		if len(m.displayItems) == 0 {
 		b.WriteString(emptyStyle.Render("  No feeds tracked yet. Press 'a' to add one."))
 		b.WriteString("\n")
 	} else {
@@ -53,6 +59,17 @@ func (m model) feedsListView() string {
 			indent := strings.Repeat("  ", item.depth)
 
 			switch item.kind {
+			case allEntriesItem:
+				line := fmt.Sprintf("  All Entries  %s", unreadCountStr(item.unread)+" unread")
+				var rendered string
+				if i == m.displayCursor {
+					rendered = selectedItemStyle.Render("> " + line)
+				} else {
+					rendered = titleStyle.Render("  " + line)
+				}
+				b.WriteString(rendered)
+				b.WriteString("\n")
+
 			case folderHeaderItem:
 				marker := "▸"
 				if !m.collapsed[item.folder.ID] {
@@ -117,6 +134,8 @@ func (m model) entriesListView() string {
 	title := "All Entries"
 	if m.feed != nil && m.feed.Title != "" {
 		title = m.feed.Title
+	} else if m.feed == nil {
+		title = "All Entries"
 	}
 	filter := "unread"
 	if m.showRead {
@@ -141,10 +160,22 @@ func (m model) entriesListView() string {
 				eTitle = "(no title)"
 			}
 
+			showingAllFeeds := m.feed == nil
 			line := fmt.Sprintf("  %s  %s",
 				pub,
 				truncate(eTitle, widthForCol(m.width, 60)),
 			)
+			if showingAllFeeds {
+				feedLabel := entry.FeedTitle
+				if feedLabel == "" {
+					feedLabel = "?"
+				}
+				line = fmt.Sprintf("  %s  [%s] %s",
+					pub,
+					feedLabel,
+					truncate(eTitle, widthForCol(m.width, 50)),
+				)
+			}
 
 			var rendered string
 			if i == m.entryCursor {
@@ -155,6 +186,11 @@ func (m model) entriesListView() string {
 				rendered = normalItemStyle.Render("  " + line)
 			}
 			b.WriteString(rendered)
+			b.WriteString("\n")
+		}
+
+		if len(m.entries) >= m.entryPageSize {
+			b.WriteString(helpStyle.Render(fmt.Sprintf("  [L] Load more (%d loaded)", len(m.entries))))
 			b.WriteString("\n")
 		}
 	}
@@ -247,8 +283,8 @@ func (m model) helpView() string {
 		"",
 		"  Actions",
 		"    a           Add a new feed",
-		"    e           Export feeds to OPML",
-		"    i           Import feeds from OPML",
+		"    e           Export feeds to OPML (filter options)",
+		"    i           Import feeds from OPML (preview first)",
 		"    g           Create a folder",
 		"    m           Move feed to folder",
 		"    d           Delete folder or feed",
@@ -257,8 +293,12 @@ func (m model) helpView() string {
 		"    f           Fetch all feeds",
 		"    r           Refresh current view",
 		"    u           Toggle show read entries",
+		"    L           Load more entries (paginated)",
 		"    o           Open entry URL in browser",
 		"    M           Mark entry unread",
+		"",
+		"  Feed List",
+		"    All Entries Shows entries from all feeds",
 		"",
 		"  Global",
 		"    ?           Toggle this help",
@@ -280,12 +320,15 @@ func (m model) statusBar() string {
 	status := m.status
 	if status == "" {
 		if m.fetching {
-			status = m.spinner.View() + " Fetching all feeds..."
+			status = "Fetching all feeds..."
 		} else if m.loading {
-			status = m.spinner.View() + " Loading..."
+			status = "Loading..."
 		} else {
 			status = "Ready"
 		}
+	}
+	if m.fetching || m.loading {
+		status = m.spinner.View() + " " + status
 	}
 
 	left := statusStyle.Render(status)
@@ -458,6 +501,97 @@ func (m model) importView() string {
 	b.WriteString("  ")
 	b.WriteString(m.textInput.View())
 	b.WriteString("\n")
+	b.WriteString("\n")
+	b.WriteString(m.statusBar())
+	return b.String()
+}
+
+func (m model) importDryRunView() string {
+	var b strings.Builder
+	if m.loading {
+		b.WriteString(headerStyle.Render(" < Importing..."))
+		b.WriteString("\n\n\n\n")
+		b.WriteString(centerStyle.Render(m.spinner.View() + " Importing feeds..."))
+		b.WriteString("\n\n")
+		b.WriteString(m.statusBar())
+		return b.String()
+	}
+	b.WriteString(headerStyle.Render(" < Import Preview"))
+	b.WriteString(helpStyle.Render("  [Enter] Confirm  [Esc] Cancel  [q] Quit"))
+	b.WriteString("\n\n")
+
+	if len(m.importSpecs) == 0 {
+		b.WriteString(emptyStyle.Render("  No feeds found in OPML file."))
+		b.WriteString("\n")
+	} else {
+		byFolder := make(map[string][]opml.FeedSpec)
+		var noFolder []opml.FeedSpec
+		for _, s := range m.importSpecs {
+			if s.Folder == "" {
+				noFolder = append(noFolder, s)
+			} else {
+				byFolder[s.Folder] = append(byFolder[s.Folder], s)
+			}
+		}
+
+		folderNames := make([]string, 0, len(byFolder))
+		for name := range byFolder {
+			folderNames = append(folderNames, name)
+		}
+		sort.Strings(folderNames)
+
+		for _, name := range folderNames {
+			feeds := byFolder[name]
+			b.WriteString(folderHeaderStyle.Render(fmt.Sprintf("  %s (%d feeds)", name, len(feeds))))
+			b.WriteString("\n")
+			for _, f := range feeds {
+				title := f.Title
+				if title == "" {
+					title = "(no title)"
+				}
+				b.WriteString(dimmedStyle.Render(fmt.Sprintf("    %s", title)))
+				b.WriteString("\n")
+				b.WriteString(helpStyle.Render(fmt.Sprintf("      %s", f.URL)))
+				b.WriteString("\n")
+			}
+		}
+
+		if len(noFolder) > 0 {
+			b.WriteString(folderHeaderStyle.Render(fmt.Sprintf("  Uncategorized (%d feeds)", len(noFolder))))
+			b.WriteString("\n")
+			for _, f := range noFolder {
+				title := f.Title
+				if title == "" {
+					title = "(no title)"
+				}
+				b.WriteString(dimmedStyle.Render(fmt.Sprintf("    %s", title)))
+				b.WriteString("\n")
+				b.WriteString(helpStyle.Render(fmt.Sprintf("      %s", f.URL)))
+				b.WriteString("\n")
+			}
+		}
+	}
+
+	b.WriteString("\n")
+	b.WriteString(m.statusBar())
+	return b.String()
+}
+
+func (m model) exportPickView() string {
+	var b strings.Builder
+	b.WriteString(headerStyle.Render(" < Export Feeds"))
+	b.WriteString(helpStyle.Render("  [a] All  [f] Folders only  [u] Ungrouped only  [Esc] Cancel"))
+	b.WriteString("\n\n")
+
+	b.WriteString(detailLabelStyle.Render("  Choose which feeds to export:"))
+	b.WriteString("\n\n")
+	b.WriteString(normalItemStyle.Render("  a  All feeds"))
+	b.WriteString("\n")
+	b.WriteString(normalItemStyle.Render("  f  Feeds in folders only"))
+	b.WriteString("\n")
+	b.WriteString(normalItemStyle.Render("  u  Ungrouped feeds only"))
+	b.WriteString("\n")
+
 	b.WriteString("\n")
 	b.WriteString(m.statusBar())
 	return b.String()
