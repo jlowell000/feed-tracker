@@ -74,6 +74,7 @@ go build -o bin/ftui ./cmd/tui
 | `folder create <name>` | Create a folder |
 | `folder rename <old> <new>` | Rename a folder |
 | `folder delete <name>` | Delete a folder (feeds become ungrouped) |
+| `export [--output <file>]` | Export feeds to OPML file (preserves folders) |
 | `import [--dry-run] <file.opml>` | Import feeds from OPML file (preserves folders) |
 | `list [<name> \| --feed-id <id>] [--limit <n>]` | List entries, newest first. Omitting feed name/ID lists all. |
 | `completion bash\|zsh` | Generate shell completion script |

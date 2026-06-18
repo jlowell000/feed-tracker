@@ -28,10 +28,14 @@ func Export(specs []FeedSpec, w io.Writer) error {
 
 	for _, name := range folderNames {
 		feeds := byFolder[name]
+		sort.Slice(feeds, func(i, j int) bool {
+			return feeds[i].Title < feeds[j].Title
+		})
 		var children []opmlOutline
 		for _, f := range feeds {
 			children = append(children, opmlOutline{
 				Text:   f.Title,
+				Title:  f.Title,
 				Type:   "rss",
 				XMLURL: f.URL,
 			})
@@ -45,6 +49,7 @@ func Export(specs []FeedSpec, w io.Writer) error {
 	for _, f := range noFolder {
 		bodyOutlines = append(bodyOutlines, opmlOutline{
 			Text:   f.Title,
+			Title:  f.Title,
 			Type:   "rss",
 			XMLURL: f.URL,
 		})
