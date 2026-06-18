@@ -17,6 +17,7 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 	feedID := fs.String("feed-id", "", "feed ID to list entries for")
 	limit := fs.Int("limit", 20, "max entries to show")
 	unreadOnly := fs.Bool("unread", false, "show only unread entries")
+	detail := fs.Bool("detail", false, "show detailed entry view")
 	fs.Parse(args)
 
 	feedName := ""
@@ -63,6 +64,11 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 		return
 	}
 
+	if *detail {
+		printEntriesDetail(entries, resolvedID)
+		return
+	}
+
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	showFeed := resolvedID == ""
 	if showFeed {
@@ -89,4 +95,45 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 		}
 	}
 	w.Flush()
+}
+
+func printEntriesDetail(entries []*domain.Entry, resolvedID string) {
+	for i, e := range entries {
+		if i > 0 {
+			fmt.Println("---")
+		}
+		pub := "(no date)"
+		if !e.PublishedAt.IsZero() {
+			pub = e.PublishedAt.Format("2006-01-02 15:04")
+		}
+		title := e.Title
+		if title == "" {
+			title = "(no title)"
+		}
+		read := "no"
+		if e.Read {
+			read = "yes"
+		}
+		fmt.Printf("Title:   %s\n", title)
+		fmt.Printf("Published: %s\n", pub)
+		if e.Author != "" {
+			fmt.Printf("Author:  %s\n", e.Author)
+		}
+		if resolvedID == "" {
+			fmt.Printf("Feed:    %s\n", e.FeedTitle)
+		}
+		fmt.Printf("URL:     %s\n", e.URL)
+		fmt.Printf("Read:    %s\n", read)
+		body := e.Content
+		if body == "" {
+			body = e.Summary
+		}
+		if body != "" {
+			if len(body) > 200 {
+				body = body[:200] + "..."
+			}
+			fmt.Printf("Content: %s\n", body)
+		}
+	}
+	fmt.Println("---")
 }

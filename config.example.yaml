@@ -4,3 +4,6 @@ database:
 http:
   timeout: 30s
   user_agent: "feed-tracker/0.1"
+
+tui:
+  entry_limit: 100

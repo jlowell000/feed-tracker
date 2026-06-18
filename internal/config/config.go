@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Database DatabaseConfig `yaml:"database"`
 	HTTP     HTTPConfig     `yaml:"http"`
+	TUI      TUIConfig      `yaml:"tui"`
 }
 
 type DatabaseConfig struct {
@@ -22,6 +23,10 @@ type HTTPConfig struct {
 	UserAgent string        `yaml:"user_agent"`
 }
 
+type TUIConfig struct {
+	EntryLimit int `yaml:"entry_limit"`
+}
+
 func (c *Config) SetDefaults() {
 	if c.Database.Path == "" {
 		c.Database.Path = "./data/feeds.db"
@@ -31,6 +36,9 @@ func (c *Config) SetDefaults() {
 	}
 	if c.HTTP.UserAgent == "" {
 		c.HTTP.UserAgent = "feed-tracker/0.1"
+	}
+	if c.TUI.EntryLimit <= 0 {
+		c.TUI.EntryLimit = 100
 	}
 }
 

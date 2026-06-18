@@ -205,7 +205,7 @@ func (m model) handleFeedsListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.feed = item.feed
 				m.prevScreen = m.screen
 				m.screen = entriesListScreen
-				return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead)
+				return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit)
 			}
 		}
 	case "e":
@@ -311,7 +311,7 @@ func (m model) handleEntriesListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "u":
 		m.showRead = !m.showRead
-		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead)
+		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit)
 	case "esc":
 		m.screen = feedsListScreen
 		m.feed = nil
@@ -319,7 +319,7 @@ func (m model) handleEntriesListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.entryCursor = 0
 		return m, loadFeedsCmd(m.store)
 	case "r":
-		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead)
+		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit)
 	case "?":
 		m.prevScreen = m.screen
 		m.screen = helpScreen
@@ -335,7 +335,7 @@ func (m model) handleEntryDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc", "backspace":
 		m.screen = entriesListScreen
 		m.entry = nil
-		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead)
+		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit)
 	case "o":
 		if m.entry != nil && m.entry.URL != "" {
 			openURL(m.entry.URL)
@@ -345,7 +345,7 @@ func (m model) handleEntryDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.screen = entriesListScreen
 			entryID := m.entry.ID
 			m.entry = nil
-			return m, markUnreadAndReloadCmd(m.store, m.feed.ID, m.showRead, entryID)
+			return m, markUnreadAndReloadCmd(m.store, m.feed.ID, m.showRead, entryID, m.cfg.TUI.EntryLimit)
 		}
 	case "?":
 		m.prevScreen = m.screen

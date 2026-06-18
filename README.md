@@ -75,10 +75,10 @@ go build -o bin/ftui ./cmd/tui
 | `folder rename <old> <new>` | Rename a folder |
 | `folder delete <name>` | Delete a folder (feeds become ungrouped) |
 | `folder move <feed> <folder>` | Move a feed to a folder |
-| `export [--output <file>]` | Export feeds to OPML file (preserves folders) |
+| `export [--output <file>] [--folders-only \| --feeds-only]` | Export feeds to OPML file. `--folders-only`/`--feeds-only` filter by folder status |
 | `import [--dry-run] <file.opml>` | Import feeds from OPML file (preserves folders) |
 | `delete <name> \| --feed-id <id>` | Delete a feed and all its entries |
-| `list [<name> \| --feed-id <id>] [--limit <n>] [--unread]` | List entries, newest first. `--unread` filters to unread only. |
+| `list [<name> \| --feed-id <id>] [--limit <n>] [--unread] [--detail]` | List entries. `--unread` filters, `--detail` shows full entry info |
 | `read <entry-id>` | Mark an entry as read |
 | `unread <entry-id>` | Mark an entry as unread |
 | `completion bash\|zsh` | Generate shell completion script |
@@ -125,6 +125,9 @@ database:
 http:
   timeout: 30s
   user_agent: "feed-tracker/0.1"
+
+tui:
+  entry_limit: 100      # max entries loaded per feed in TUI
 ```
 
 ## Development

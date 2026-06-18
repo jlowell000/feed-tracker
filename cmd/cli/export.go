@@ -16,6 +16,8 @@ import (
 func runExport(ctx context.Context, cfgPath string, args []string) {
 	fs := flag.NewFlagSet("export", flag.ExitOnError)
 	output := fs.String("output", "", "output file (default: feed-tracker-<timestamp>.opml)")
+	foldersOnly := fs.Bool("folders-only", false, "export only feeds in folders")
+	feedsOnly := fs.Bool("feeds-only", false, "export only feeds without a folder")
 	fs.Parse(args)
 
 	cfg, err := config.Load(cfgPath)
@@ -63,6 +65,24 @@ func runExport(ctx context.Context, cfgPath string, args []string) {
 			s.Folder = folderNames[feed.FolderID]
 		}
 		specs = append(specs, s)
+	}
+
+	if *foldersOnly {
+		var filtered []opml.FeedSpec
+		for _, s := range specs {
+			if s.Folder != "" {
+				filtered = append(filtered, s)
+			}
+		}
+		specs = filtered
+	} else if *feedsOnly {
+		var filtered []opml.FeedSpec
+		for _, s := range specs {
+			if s.Folder == "" {
+				filtered = append(filtered, s)
+			}
+		}
+		specs = filtered
 	}
 
 	sort.Slice(specs, func(i, j int) bool {

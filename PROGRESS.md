@@ -33,3 +33,6 @@
 | 29 | CLI: list --unread + read column | ✓ | `ft list --unread`, READ column in output |
 | 30 | CLI: feeds unread counts + --folders | ✓ | Unread column in `ft feeds`, `ft feeds --folders` grouped view |
 | 31 | CLI: folder move | ✓ | `ft folder move <feed> <folder>` |
+| 32 | CLI: list --detail mode | ✓ | `ft list --detail` shows author, content snippet, read status |
+| 33 | TUI: configurable entry limit | ✓ | `tui.entry_limit` in config replaces hardcoded 100 |
+| 34 | CLI: export --folders-only / --feeds-only | ✓ | Selective export flags |

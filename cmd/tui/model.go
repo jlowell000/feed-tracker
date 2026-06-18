@@ -187,15 +187,15 @@ func loadFeedsCmd(store storage.Storage) tea.Cmd {
 	}
 }
 
-func loadEntriesCmd(store storage.Storage, feedID string, showRead bool) tea.Cmd {
+func loadEntriesCmd(store storage.Storage, feedID string, showRead bool, limit int) tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
 		var entries []*domain.Entry
 		var err error
 		if showRead {
-			entries, err = store.ListEntries(ctx, feedID, 100)
+			entries, err = store.ListEntries(ctx, feedID, limit)
 		} else {
-			entries, err = store.ListEntriesUnread(ctx, feedID, 100)
+			entries, err = store.ListEntriesUnread(ctx, feedID, limit)
 		}
 		if err != nil {
 			return errMsg{err}
@@ -300,7 +300,7 @@ func markEntryUnreadCmd(store storage.Storage, entryID string) tea.Cmd {
 	}
 }
 
-func markUnreadAndReloadCmd(store storage.Storage, feedID string, showRead bool, entryID string) tea.Cmd {
+func markUnreadAndReloadCmd(store storage.Storage, feedID string, showRead bool, entryID string, limit int) tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
 		if err := store.MarkEntryUnread(ctx, entryID); err != nil {
@@ -309,9 +309,9 @@ func markUnreadAndReloadCmd(store storage.Storage, feedID string, showRead bool,
 		var entries []*domain.Entry
 		var err error
 		if showRead {
-			entries, err = store.ListEntries(ctx, feedID, 100)
+			entries, err = store.ListEntries(ctx, feedID, limit)
 		} else {
-			entries, err = store.ListEntriesUnread(ctx, feedID, 100)
+			entries, err = store.ListEntriesUnread(ctx, feedID, limit)
 		}
 		if err != nil {
 			return errMsg{err}
