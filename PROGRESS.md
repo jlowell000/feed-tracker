@@ -26,3 +26,6 @@
 | 22 | Folders: group feeds into folders | ✓ | `Folder` domain type, folders table, CLI subcommand, TUI grouped display |
 | 23 | CLI: OPML import with folders + dry-run | ✓ | `internal/opml/`, `ft import [--dry-run] <file.opml>`, folder creation |
 | 24 | CLI: OPML export with folders | ✓ | `ft export [--output <file>]`, `internal/opml/export.go` |
+| 25 | CLI: delete feed | ✓ | `ft delete <name>`, `storage.DeleteFeed` |
+| 26 | TUI: OPML import/export | ✓ | `e`/`i` keys for export/import screens |
+| 27 | TUI: delete feed | ✓ | `d` key deletes feed or folder |

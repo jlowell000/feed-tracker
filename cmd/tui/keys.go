@@ -8,6 +8,8 @@ type keyMap struct {
 	Enter      key.Binding
 	Back       key.Binding
 	Add        key.Binding
+	Export     key.Binding
+	Import     key.Binding
 	Fetch      key.Binding
 	Refresh    key.Binding
 	Open       key.Binding
@@ -16,6 +18,7 @@ type keyMap struct {
 	CreateFolder key.Binding
 	MoveFeed     key.Binding
 	DeleteFolder key.Binding
+	DeleteFeed   key.Binding
 	RenameFolder key.Binding
 	Help         key.Binding
 	Quit         key.Binding
@@ -41,6 +44,14 @@ var keys = keyMap{
 	Add: key.NewBinding(
 		key.WithKeys("a"),
 		key.WithHelp("a", "add feed"),
+	),
+	Export: key.NewBinding(
+		key.WithKeys("e"),
+		key.WithHelp("e", "export OPML"),
+	),
+	Import: key.NewBinding(
+		key.WithKeys("i"),
+		key.WithHelp("i", "import OPML"),
 	),
 	Fetch: key.NewBinding(
 		key.WithKeys("f"),
@@ -73,6 +84,10 @@ var keys = keyMap{
 	DeleteFolder: key.NewBinding(
 		key.WithKeys("d"),
 		key.WithHelp("d", "delete folder"),
+	),
+	DeleteFeed: key.NewBinding(
+		key.WithKeys("d"),
+		key.WithHelp("d", "delete feed"),
 	),
 	RenameFolder: key.NewBinding(
 		key.WithKeys("R"),

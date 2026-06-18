@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -12,6 +14,7 @@ import (
 	"github.com/jlowell000/feed-tracker/internal/config"
 	"github.com/jlowell000/feed-tracker/internal/domain"
 	"github.com/jlowell000/feed-tracker/internal/feedtracker"
+	"github.com/jlowell000/feed-tracker/internal/opml"
 	"github.com/jlowell000/feed-tracker/internal/storage"
 )
 
@@ -41,6 +44,7 @@ const (
 	folderCreateScreen
 	folderRenameScreen
 	folderPickScreen
+	importScreen
 )
 
 type model struct {
@@ -120,6 +124,20 @@ type folderRenamedMsg struct {
 }
 
 type feedFolderSetMsg struct {
+	err error
+}
+
+type feedDeletedMsg struct {
+	err error
+}
+
+type exportCompleteMsg struct {
+	path string
+	err  error
+}
+
+type importCompleteMsg struct {
+	n   int
 	err error
 }
 
@@ -352,6 +370,78 @@ func buildDisplayItems(feeds []*domain.Feed, folders []*domain.Folder, counts ma
 	}
 
 	return items
+}
+
+func exportFeedsCmd(store storage.Storage) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		feeds, err := store.ListFeeds(ctx)
+		if err != nil {
+			return exportCompleteMsg{err: fmt.Errorf("list feeds: %w", err)}
+		}
+		folders, err := store.ListFolders(ctx)
+		if err != nil {
+			return exportCompleteMsg{err: fmt.Errorf("list folders: %w", err)}
+		}
+
+		folderNames := make(map[string]string)
+		for _, f := range folders {
+			folderNames[f.ID] = f.Name
+		}
+
+		var specs []opml.FeedSpec
+		for _, feed := range feeds {
+			s := opml.FeedSpec{
+				URL:   feed.FeedURL,
+				Title: feed.Title,
+			}
+			if feed.FolderID != "" {
+				s.Folder = folderNames[feed.FolderID]
+			}
+			specs = append(specs, s)
+		}
+
+		path := fmt.Sprintf("feed-tracker-%s.opml", time.Now().Format("2006-01-02-150405"))
+		f, err := os.Create(path)
+		if err != nil {
+			return exportCompleteMsg{err: fmt.Errorf("create file: %w", err)}
+		}
+		defer f.Close()
+
+		if err := opml.Export(specs, f); err != nil {
+			return exportCompleteMsg{err: fmt.Errorf("export opml: %w", err)}
+		}
+
+		return exportCompleteMsg{path: path}
+	}
+}
+
+func importFeedsCmd(tracker *feedtracker.Tracker, path string) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		specs, err := opml.ParseFile(path)
+		if err != nil {
+			return importCompleteMsg{err: fmt.Errorf("parse opml: %w", err)}
+		}
+		n := 0
+		for _, s := range specs {
+			if _, err := tracker.AddFeed(ctx, s.URL); err != nil {
+				return importCompleteMsg{err: fmt.Errorf("import feed %q: %w", s.URL, err)}
+			}
+			n++
+		}
+		return importCompleteMsg{n: n}
+	}
+}
+
+func deleteFeedCmd(store storage.Storage, feedID string) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		if err := store.DeleteFeed(ctx, feedID); err != nil {
+			return feedDeletedMsg{err: err}
+		}
+		return feedDeletedMsg{}
+	}
 }
 
 func fetchAllFeedsCmd(tracker *feedtracker.Tracker, store storage.Storage) tea.Cmd {

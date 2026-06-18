@@ -32,6 +32,8 @@ func (m model) View() string {
 		return m.folderRenameView()
 	case folderPickScreen:
 		return m.folderPickView()
+	case importScreen:
+		return m.importView()
 	}
 	return ""
 }
@@ -40,7 +42,7 @@ func (m model) feedsListView() string {
 	var b strings.Builder
 
 	b.WriteString(headerStyle.Render(" Feed Tracker"))
-	b.WriteString(helpStyle.Render("  [?] Help  [g] Folder  [q] Quit"))
+	b.WriteString(helpStyle.Render("  [?] Help  [e] Export  [i] Import  [q] Quit"))
 	b.WriteString("\n\n")
 
 	if len(m.displayItems) == 0 {
@@ -245,9 +247,11 @@ func (m model) helpView() string {
 		"",
 		"  Actions",
 		"    a           Add a new feed",
+		"    e           Export feeds to OPML",
+		"    i           Import feeds from OPML",
 		"    g           Create a folder",
 		"    m           Move feed to folder",
-		"    d           Delete folder",
+		"    d           Delete folder or feed",
 		"    R           Rename folder",
 		"    Enter/Space Toggle folder collapse",
 		"    f           Fetch all feeds",
@@ -439,6 +443,21 @@ func (m model) folderPickView() string {
 		b.WriteString("\n")
 	}
 
+	b.WriteString("\n")
+	b.WriteString(m.statusBar())
+	return b.String()
+}
+
+func (m model) importView() string {
+	var b strings.Builder
+	b.WriteString(headerStyle.Render(" < Import OPML"))
+	b.WriteString(helpStyle.Render("  [Enter] Import  [Esc] Back  [q] Quit"))
+	b.WriteString("\n\n\n")
+	b.WriteString(detailLabelStyle.Render("  Enter path to OPML file:"))
+	b.WriteString("\n\n")
+	b.WriteString("  ")
+	b.WriteString(m.textInput.View())
+	b.WriteString("\n")
 	b.WriteString("\n")
 	b.WriteString(m.statusBar())
 	return b.String()

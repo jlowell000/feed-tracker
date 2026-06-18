@@ -107,6 +107,15 @@ func (s *sqliteStorage) UpdateFeed(ctx context.Context, feed *domain.Feed) error
 	return nil
 }
 
+func (s *sqliteStorage) DeleteFeed(ctx context.Context, id string) error {
+	const q = `DELETE FROM feeds WHERE id = ?`
+	_, err := s.db.ExecContext(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("delete feed: %w", err)
+	}
+	return nil
+}
+
 func (s *sqliteStorage) UpsertEntry(ctx context.Context, entry *domain.Entry) (bool, error) {
 	const q = `INSERT INTO entries (id, feed_id, external_id, title, url, summary, content, author, published_at, updated_at, fetched_at, read)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)

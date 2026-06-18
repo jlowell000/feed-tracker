@@ -55,6 +55,8 @@ func main() {
 		runImport(ctx, *cfgPath, remaining)
 	case "export":
 		runExport(ctx, *cfgPath, remaining)
+	case "delete":
+		runDelete(ctx, *cfgPath, remaining)
 	case "list":
 		runList(ctx, *cfgPath, remaining)
 	case "completion":
@@ -83,6 +85,7 @@ Commands:
   folder [create|delete|rename]  Manage folders
   import [--dry-run] <file.opml>  Import feeds from OPML file
   export [--output <file>]        Export feeds to OPML file
+  delete <name | --feed-id <id>>  Delete a feed and all its entries
   list   [<name> | --feed-id <id>] [--limit <n>]  List entries
   completion bash|zsh  Generate shell completion script
 

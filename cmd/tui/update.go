@@ -89,6 +89,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, loadFeedsCmd(m.store)
 
+	case feedDeletedMsg:
+		if msg.err != nil {
+			m.status = fmt.Sprintf("Error deleting feed: %v", msg.err)
+		} else {
+			m.status = "Feed deleted"
+		}
+		return m, loadFeedsCmd(m.store)
+
+	case exportCompleteMsg:
+		m.loading = false
+		if msg.err != nil {
+			m.status = fmt.Sprintf("Export error: %v", msg.err)
+		} else {
+			m.status = fmt.Sprintf("Exported %d feeds to %s", len(m.feeds), msg.path)
+		}
+		return m, nil
+
+	case importCompleteMsg:
+		m.loading = false
+		if msg.err != nil {
+			m.status = fmt.Sprintf("Import error: %v", msg.err)
+		} else {
+			m.status = fmt.Sprintf("Imported %d feeds", msg.n)
+		}
+		return m, loadFeedsCmd(m.store)
+
 	case entriesLoadedMsg:
 		m.entries = msg.entries
 		m.entryCursor = 0
@@ -142,6 +168,8 @@ func (m model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleFolderRenameKey(msg)
 	case folderPickScreen:
 		return m.handleFolderPickKey(msg)
+	case importScreen:
+		return m.handleImportKey(msg)
 	}
 	return m, nil
 }
@@ -180,6 +208,18 @@ func (m model) handleFeedsListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead)
 			}
 		}
+	case "e":
+		if !m.loading && !m.fetching && len(m.feeds) > 0 {
+			m.loading = true
+			m.status = "Exporting feeds..."
+			return m, exportFeedsCmd(m.store)
+		}
+	case "i":
+		m.prevScreen = m.screen
+		m.screen = importScreen
+		m.textInput.SetValue("")
+		m.textInput.Placeholder = "/path/to/feeds.opml"
+		m.textInput.Focus()
 	case "a":
 		m.prevScreen = m.screen
 		m.screen = addFeedScreen
@@ -210,7 +250,8 @@ func (m model) handleFeedsListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "d":
 		if len(m.displayItems) > 0 && m.displayCursor < len(m.displayItems) {
 			item := m.displayItems[m.displayCursor]
-			if item.kind == folderHeaderItem && item.folder != nil {
+			switch {
+			case item.kind == folderHeaderItem && item.folder != nil:
 				hasFeeds := false
 				for _, f := range m.feeds {
 					if f.FolderID == item.folder.ID {
@@ -223,6 +264,8 @@ func (m model) handleFeedsListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				} else {
 					return m, deleteFolderCmd(m.store, item.folder.ID)
 				}
+			case item.kind == feedItem && item.feed != nil:
+				return m, deleteFeedCmd(m.store, item.feed.ID)
 			}
 		}
 	case "R":
@@ -375,6 +418,29 @@ func (m model) handleFolderRenameKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.screen = feedsListScreen
 		return m, tiCmd
 	}
+	return m, tiCmd
+}
+
+func (m model) handleImportKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var tiCmd tea.Cmd
+	m.textInput, tiCmd = m.textInput.Update(msg)
+
+	switch msg.Type {
+	case tea.KeyEnter:
+		path := m.textInput.Value()
+		if path != "" {
+			m.loading = true
+			m.status = "Importing feeds..."
+			m.textInput.Blur()
+			m.screen = feedsListScreen
+			return m, tea.Batch(tiCmd, importFeedsCmd(m.tracker, path))
+		}
+	case tea.KeyEscape:
+		m.textInput.Blur()
+		m.screen = feedsListScreen
+		return m, tiCmd
+	}
+
 	return m, tiCmd
 }
 

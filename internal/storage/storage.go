@@ -23,6 +23,7 @@ type Storage interface {
 	GetFeedByTitle(ctx context.Context, title string) (*domain.Feed, error)
 	ListFeeds(ctx context.Context) ([]*domain.Feed, error)
 	UpdateFeed(ctx context.Context, feed *domain.Feed) error
+	DeleteFeed(ctx context.Context, id string) error
 
 	UpsertEntry(ctx context.Context, entry *domain.Entry) (bool, error)
 	ListEntries(ctx context.Context, feedID string, limit int) ([]*domain.Entry, error)

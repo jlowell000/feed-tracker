@@ -76,6 +76,7 @@ go build -o bin/ftui ./cmd/tui
 | `folder delete <name>` | Delete a folder (feeds become ungrouped) |
 | `export [--output <file>]` | Export feeds to OPML file (preserves folders) |
 | `import [--dry-run] <file.opml>` | Import feeds from OPML file (preserves folders) |
+| `delete <name> \| --feed-id <id>` | Delete a feed and all its entries |
 | `list [<name> \| --feed-id <id>] [--limit <n>]` | List entries, newest first. Omitting feed name/ID lists all. |
 | `completion bash\|zsh` | Generate shell completion script |
 
@@ -97,10 +98,12 @@ Use `u` to toggle between showing only unread entries or all entries.
 | `a` | Add a new feed |
 | `g` | Create a folder |
 | `m` | Move feed to folder |
-| `d` | Delete folder |
+| `d` | Delete folder or feed |
 | `R` | Rename folder |
 | `Enter/Space` | Toggle folder collapse |
 | `f` | Fetch all feeds |
+| `e` | Export feeds to OPML file |
+| `i` | Import feeds from OPML file |
 | `r` | Refresh current view |
 | `u` | Toggle show read entries |
 | `M` | Mark entry unread (in entry detail) |
