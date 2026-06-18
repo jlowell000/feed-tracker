@@ -54,7 +54,7 @@ func TestFetchNotModified(t *testing.T) {
 	defer ts.Close()
 
 	f := newTestFetcher()
-	result, err := f.Fetch(ts.URL, `"abc123"`, "")
+	result, err := f.Fetch(ts.URL, `"abc1232"`, "")
 	if err != nil {
 		t.Fatalf("Fetch: %v", err)
 	}
