@@ -5,6 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
+
+	"github.com/jlowell000/feed-tracker/internal/config"
 )
 
 func main() {
@@ -41,6 +44,32 @@ func main() {
 	ctx := context.Background()
 
 	switch subcommand {
+	case "completion":
+		if len(remaining) < 1 {
+			fmt.Fprintln(os.Stderr, "usage: ft completion bash|zsh")
+			os.Exit(1)
+		}
+		runCompletion(remaining[0])
+		return
+	case "help", "-h", "--help":
+		printUsage()
+		return
+	}
+
+	cfg, err := config.Load(*cfgPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
+		os.Exit(1)
+	}
+
+	timeout := cfg.HTTP.Timeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	switch subcommand {
 	case "migrate":
 		runMigrate(ctx, *cfgPath)
 	case "add":
@@ -65,14 +94,10 @@ func main() {
 		runRead(ctx, *cfgPath, remaining)
 	case "unread":
 		runUnread(ctx, *cfgPath, remaining)
-	case "completion":
-		if len(remaining) < 1 {
-			fmt.Fprintln(os.Stderr, "usage: ft completion bash|zsh")
-			os.Exit(1)
-		}
-		runCompletion(remaining[0])
-	case "help", "-h", "--help":
-		printUsage()
+	case "vacuum":
+		runVacuum(ctx, *cfgPath)
+	case "db":
+		runDB(ctx, *cfgPath, remaining)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", subcommand)
 		printUsage()
@@ -96,6 +121,8 @@ Commands:
   search [--limit <n>] <query>  Search entries by keyword
   read   [--all | --feed <name> | --feed-id <id> | <entry-id>]  Mark entries as read
   unread <entry-id>  Mark entry as unread
+  vacuum            Reclaim database storage space (VACUUM)
+  db     optimize   Optimize database performance (PRAGMA optimize)
   completion bash|zsh  Generate shell completion script
 
 Flags:

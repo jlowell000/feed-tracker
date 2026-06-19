@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -40,8 +41,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.displayCursor = max(0, len(m.displayItems)-1)
 		}
 		return m, tea.Batch(
-			loadUnreadCountsCmd(m.store),
-			loadFoldersCmd(m.store),
+			loadUnreadCountsCmd(m.store, m.cfg.HTTP.Timeout),
+			loadFoldersCmd(m.store, m.cfg.HTTP.Timeout),
 		)
 
 	case foldersLoadedMsg:
@@ -63,7 +64,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.status = "Folder created"
 		}
-		return m, loadFeedsCmd(m.store)
+		return m, loadFeedsCmd(m.store, m.cfg.HTTP.Timeout)
 
 	case folderDeletedMsg:
 		if msg.err != nil {
@@ -71,7 +72,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.status = "Folder deleted"
 		}
-		return m, loadFeedsCmd(m.store)
+		return m, loadFeedsCmd(m.store, m.cfg.HTTP.Timeout)
 
 	case folderRenamedMsg:
 		if msg.err != nil {
@@ -79,7 +80,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.status = "Folder renamed"
 		}
-		return m, loadFeedsCmd(m.store)
+		return m, loadFeedsCmd(m.store, m.cfg.HTTP.Timeout)
 
 	case feedFolderSetMsg:
 		if msg.err != nil {
@@ -87,7 +88,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.status = "Feed moved"
 		}
-		return m, loadFeedsCmd(m.store)
+		return m, loadFeedsCmd(m.store, m.cfg.HTTP.Timeout)
 
 	case feedDeletedMsg:
 		if msg.err != nil {
@@ -95,7 +96,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.status = "Feed deleted"
 		}
-		return m, loadFeedsCmd(m.store)
+		return m, loadFeedsCmd(m.store, m.cfg.HTTP.Timeout)
 
 	case exportCompleteMsg:
 		m.loading = false
@@ -130,7 +131,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.status = s
 		}
-		return m, loadFeedsCmd(m.store)
+		return m, loadFeedsCmd(m.store, m.cfg.HTTP.Timeout)
 
 	case entriesLoadedMsg:
 		m.entries = msg.entries
@@ -152,13 +153,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case entriesMarkedReadMsg:
 		m.status = fmt.Sprintf("Marked %d entries as read", msg.n)
-		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit)
+		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout)
 
 	case feedMarkedReadMsg:
 		m.status = "Marked all entries as read"
 		return m, tea.Batch(
-			loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit),
-			loadUnreadCountsCmd(m.store),
+			loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout),
+			loadUnreadCountsCmd(m.store, m.cfg.HTTP.Timeout),
 		)
 
 	case feedAddedMsg:
@@ -168,7 +169,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.status = fmt.Sprintf("Added feed: %s", msg.feed.Title)
 		}
-		return m, loadFeedsCmd(m.store)
+		return m, loadFeedsCmd(m.store, m.cfg.HTTP.Timeout)
 
 	case fetchCompleteMsg:
 		m.fetching = false
@@ -177,7 +178,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.status = fmt.Sprintf("Fetched all — %d new entries", msg.totalNew)
 		}
-		cmds := []tea.Cmd{loadFeedsCmd(m.store)}
+		cmds := []tea.Cmd{loadFeedsCmd(m.store, m.cfg.HTTP.Timeout)}
 		if m.autoRefreshInterval > 0 {
 			cmds = append(cmds, autoRefreshTick(m.autoRefreshInterval))
 		}
@@ -235,6 +236,16 @@ func (m model) handleFeedsListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.displayCursor < len(m.displayItems)-1 {
 			m.displayCursor++
 		}
+	case "pgup":
+		page := max(1, m.height-5)
+		m.displayCursor = max(0, m.displayCursor-page)
+	case "pgdown":
+		page := max(1, m.height-5)
+		m.displayCursor = min(len(m.displayItems)-1, m.displayCursor+page)
+	case "home":
+		m.displayCursor = 0
+	case "end":
+		m.displayCursor = len(m.displayItems) - 1
 	case "enter":
 		if len(m.displayItems) == 0 {
 			return m, nil
@@ -245,7 +256,7 @@ func (m model) handleFeedsListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.feed = nil
 			m.prevScreen = m.screen
 			m.screen = entriesListScreen
-			return m, loadEntriesCmd(m.store, "", m.showRead, m.cfg.TUI.EntryLimit)
+			return m, loadEntriesCmd(m.store, "", m.showRead, m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout)
 		case folderHeaderItem:
 			if item.folder != nil {
 				id := item.folder.ID
@@ -261,7 +272,7 @@ func (m model) handleFeedsListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.feed = item.feed
 				m.prevScreen = m.screen
 				m.screen = entriesListScreen
-				return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit)
+				return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout)
 			}
 		}
 	case "e":
@@ -286,7 +297,7 @@ func (m model) handleFeedsListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if !m.fetching && !m.loading && len(m.feeds) > 0 {
 			m.fetching = true
 			m.status = "Fetching all feeds..."
-			return m, fetchAllFeedsCmd(m.tracker, m.store)
+			return m, fetchAllFeedsCmd(m.tracker, m.store, m.cfg.HTTP.Timeout)
 		}
 	case "g":
 		m.prevScreen = m.screen
@@ -318,10 +329,10 @@ func (m model) handleFeedsListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				if hasFeeds {
 					m.status = fmt.Sprintf("Cannot delete %q — move feeds out first", item.folder.Name)
 				} else {
-					return m, deleteFolderCmd(m.store, item.folder.ID)
+					return m, deleteFolderCmd(m.store, item.folder.ID, m.cfg.HTTP.Timeout)
 				}
 			case item.kind == feedItem && item.feed != nil:
-				return m, deleteFeedCmd(m.store, item.feed.ID)
+				return m, deleteFeedCmd(m.store, item.feed.ID, m.cfg.HTTP.Timeout)
 			}
 		}
 	case "R":
@@ -338,7 +349,7 @@ func (m model) handleFeedsListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "r":
 		m.status = ""
-		return m, loadFeedsCmd(m.store)
+		return m, loadFeedsCmd(m.store, m.cfg.HTTP.Timeout)
 	case "?":
 		m.prevScreen = m.screen
 		m.screen = helpScreen
@@ -356,6 +367,16 @@ func (m model) handleEntriesListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.entryCursor < len(m.entries)-1 {
 			m.entryCursor++
 		}
+	case "pgup":
+		page := max(1, m.height-5)
+		m.entryCursor = max(0, m.entryCursor-page)
+	case "pgdown":
+		page := max(1, m.height-5)
+		m.entryCursor = min(len(m.entries)-1, m.entryCursor+page)
+	case "home":
+		m.entryCursor = 0
+	case "end":
+		m.entryCursor = len(m.entries) - 1
 	case "enter":
 		if len(m.entries) > 0 {
 			m.entry = m.entries[m.entryCursor]
@@ -363,7 +384,7 @@ func (m model) handleEntriesListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.screen = entryDetailScreen
 			m.viewport.SetContent(entryDetailContent(m))
 			m.viewport.GotoTop()
-			return m, markEntryReadCmd(m.store, m.entry.ID)
+			return m, markEntryReadCmd(m.store, m.entry.ID, m.cfg.HTTP.Timeout)
 		}
 	case "s":
 		if !m.loading && len(m.entries) > 0 {
@@ -375,14 +396,14 @@ func (m model) handleEntriesListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "u":
 		m.showRead = !m.showRead
-		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit)
+		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout)
 	case "a":
 		if len(m.entries) > 0 {
-			return m, markDisplayedReadCmd(m.store, m.entries)
+			return m, markDisplayedReadCmd(m.store, m.entries, m.cfg.HTTP.Timeout)
 		}
 	case "A":
 		if !m.loading {
-			return m, markFeedReadAllCmd(m.store, m.feed.ID)
+			return m, markFeedReadAllCmd(m.store, m.feed.ID, m.cfg.HTTP.Timeout)
 		}
 	case "esc":
 		m.screen = feedsListScreen
@@ -390,14 +411,14 @@ func (m model) handleEntriesListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.entry = nil
 		m.entryCursor = 0
 		m.searchQuery = ""
-		return m, loadFeedsCmd(m.store)
+		return m, loadFeedsCmd(m.store, m.cfg.HTTP.Timeout)
 	case "r":
 		m.entryOffset = 0
 		m.searchQuery = ""
-		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit)
+		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout)
 	case "L":
 		if m.entryOffset > 0 && len(m.entries) >= m.entryPageSize {
-			return m, loadMoreEntriesCmd(m.store, m.feed.ID, m.showRead, m.entryPageSize, m.entryOffset)
+			return m, loadMoreEntriesCmd(m.store, m.feed.ID, m.showRead, m.entryPageSize, m.entryOffset, m.cfg.HTTP.Timeout)
 		}
 	case "?":
 		m.prevScreen = m.screen
@@ -414,7 +435,10 @@ func (m model) handleEntryDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc", "backspace":
 		m.screen = entriesListScreen
 		m.entry = nil
-		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit)
+		if m.searchQuery != "" {
+			return m, searchEntriesCmd(m.store, m.searchQuery, m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout)
+		}
+		return m, loadEntriesCmd(m.store, m.feed.ID, m.showRead, m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout)
 	case "o":
 		if m.entry != nil && m.entry.URL != "" {
 			openURL(m.entry.URL)
@@ -424,7 +448,15 @@ func (m model) handleEntryDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.screen = entriesListScreen
 			entryID := m.entry.ID
 			m.entry = nil
-			return m, markUnreadAndReloadCmd(m.store, m.feed.ID, m.showRead, entryID, m.cfg.TUI.EntryLimit)
+			if m.searchQuery != "" {
+				ctx, cancel := context.WithTimeout(context.Background(), m.cfg.HTTP.Timeout)
+				defer cancel()
+				if err := m.store.MarkEntryUnread(ctx, entryID); err != nil {
+					return m, func() tea.Msg { return errMsg{err} }
+				}
+				return m, searchEntriesCmd(m.store, m.searchQuery, m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout)
+			}
+			return m, markUnreadAndReloadCmd(m.store, m.feed.ID, m.showRead, entryID, m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout)
 		}
 	case "?":
 		m.prevScreen = m.screen
@@ -446,7 +478,7 @@ func (m model) handleAddFeedKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.status = "Adding feed..."
 			m.textInput.Blur()
 			m.screen = feedsListScreen
-			return m, tea.Batch(tiCmd, addFeedCmd(m.tracker, url))
+			return m, tea.Batch(tiCmd, addFeedCmd(m.tracker, url, m.cfg.HTTP.Timeout))
 		}
 	case tea.KeyEscape:
 		m.textInput.Blur()
@@ -467,7 +499,7 @@ func (m model) handleFolderCreateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if name != "" {
 			m.textInput.Blur()
 			m.screen = feedsListScreen
-			return m, tea.Batch(tiCmd, createFolderCmd(m.store, name))
+			return m, tea.Batch(tiCmd, createFolderCmd(m.store, name, m.cfg.HTTP.Timeout))
 		}
 	case tea.KeyEscape:
 		m.textInput.Blur()
@@ -489,7 +521,7 @@ func (m model) handleFolderRenameKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			rid := m.renameFolderID
 			m.renameFolderID = ""
 			m.screen = feedsListScreen
-			return m, tea.Batch(tiCmd, renameFolderCmd(m.store, rid, name))
+			return m, tea.Batch(tiCmd, renameFolderCmd(m.store, rid, name, m.cfg.HTTP.Timeout))
 		}
 	case tea.KeyEscape:
 		m.textInput.Blur()
@@ -507,7 +539,7 @@ func (m model) handleImportDryRunKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.loading = true
 			m.status = "Importing feeds..."
 			path := m.textInput.Value()
-			return m, importFeedsCmd(m.tracker, m.store, path)
+			return m, importFeedsCmd(m.tracker, m.store, path, m.cfg.HTTP.Timeout)
 		}
 		return m, nil
 	case "esc", "q":
@@ -525,19 +557,19 @@ func (m model) handleExportPickKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.loading = true
 		m.status = "Exporting feeds..."
 		m.screen = feedsListScreen
-		return m, exportFilteredCmd(m.store, "")
+		return m, exportFilteredCmd(m.store, "", m.cfg.HTTP.Timeout)
 	case "f":
 		m.exportFilter = "folders"
 		m.loading = true
 		m.status = "Exporting feeds..."
 		m.screen = feedsListScreen
-		return m, exportFilteredCmd(m.store, "folders")
+		return m, exportFilteredCmd(m.store, "folders", m.cfg.HTTP.Timeout)
 	case "u":
 		m.exportFilter = "feeds"
 		m.loading = true
 		m.status = "Exporting feeds..."
 		m.screen = feedsListScreen
-		return m, exportFilteredCmd(m.store, "feeds")
+		return m, exportFilteredCmd(m.store, "feeds", m.cfg.HTTP.Timeout)
 	case "esc":
 		m.screen = feedsListScreen
 		return m, nil
@@ -556,7 +588,7 @@ func (m model) handleSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.searchQuery = query
 			m.textInput.Blur()
 			m.screen = entriesListScreen
-			return m, tea.Batch(tiCmd, searchEntriesCmd(m.store, query, m.cfg.TUI.EntryLimit))
+			return m, tea.Batch(tiCmd, searchEntriesCmd(m.store, query, m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout))
 		}
 	case tea.KeyEscape:
 		m.textInput.Blur()
@@ -599,7 +631,7 @@ func (m model) handleFolderPickKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			fid := m.moveFeedID
 			m.moveFeedID = ""
 			m.screen = feedsListScreen
-			return m, setFeedFolderCmd(m.store, fid, "")
+			return m, setFeedFolderCmd(m.store, fid, "", m.cfg.HTTP.Timeout)
 		}
 		return m, nil
 	}
@@ -611,7 +643,7 @@ func (m model) handleFolderPickKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			fid := m.moveFeedID
 			m.moveFeedID = ""
 			m.screen = feedsListScreen
-			return m, setFeedFolderCmd(m.store, fid, folder.ID)
+			return m, setFeedFolderCmd(m.store, fid, folder.ID, m.cfg.HTTP.Timeout)
 		}
 	}
 	return m, nil

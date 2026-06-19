@@ -207,9 +207,17 @@ func initialModel(cfg *config.Config, store storage.Storage, tracker *feedtracke
 	}
 }
 
+func ctxWithTimeout(cfg *config.Config) (context.Context, context.CancelFunc) {
+	timeout := cfg.HTTP.Timeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	return context.WithTimeout(context.Background(), timeout)
+}
+
 func (m model) Init() tea.Cmd {
 	cmds := []tea.Cmd{
-		loadFeedsCmd(m.store),
+		loadFeedsCmd(m.store, m.cfg.HTTP.Timeout),
 		m.spinner.Tick,
 	}
 	if m.autoRefreshInterval > 0 {
@@ -218,9 +226,10 @@ func (m model) Init() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func loadFeedsCmd(store storage.Storage) tea.Cmd {
+func loadFeedsCmd(store storage.Storage, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		feeds, err := store.ListFeeds(ctx)
 		if err != nil {
 			return errMsg{err}
@@ -229,9 +238,10 @@ func loadFeedsCmd(store storage.Storage) tea.Cmd {
 	}
 }
 
-func loadEntriesCmd(store storage.Storage, feedID string, showRead bool, limit int) tea.Cmd {
+func loadEntriesCmd(store storage.Storage, feedID string, showRead bool, limit int, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		var entries []*domain.Entry
 		var err error
 		if showRead {
@@ -246,9 +256,10 @@ func loadEntriesCmd(store storage.Storage, feedID string, showRead bool, limit i
 	}
 }
 
-func loadMoreEntriesCmd(store storage.Storage, feedID string, showRead bool, limit, offset int) tea.Cmd {
+func loadMoreEntriesCmd(store storage.Storage, feedID string, showRead bool, limit, offset int, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		var entries []*domain.Entry
 		var err error
 		if showRead {
@@ -263,9 +274,10 @@ func loadMoreEntriesCmd(store storage.Storage, feedID string, showRead bool, lim
 	}
 }
 
-func loadUnreadCountsCmd(store storage.Storage) tea.Cmd {
+func loadUnreadCountsCmd(store storage.Storage, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		counts, err := store.UnreadCountByFeed(ctx)
 		if err != nil {
 			return errMsg{err}
@@ -274,9 +286,10 @@ func loadUnreadCountsCmd(store storage.Storage) tea.Cmd {
 	}
 }
 
-func loadFoldersCmd(store storage.Storage) tea.Cmd {
+func loadFoldersCmd(store storage.Storage, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		folders, err := store.ListFolders(ctx)
 		if err != nil {
 			return errMsg{err}
@@ -285,9 +298,10 @@ func loadFoldersCmd(store storage.Storage) tea.Cmd {
 	}
 }
 
-func createFolderCmd(store storage.Storage, name string) tea.Cmd {
+func createFolderCmd(store storage.Storage, name string, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		f := &domain.Folder{
 			ID:        uuid.New().String(),
 			Name:      name,
@@ -300,9 +314,10 @@ func createFolderCmd(store storage.Storage, name string) tea.Cmd {
 	}
 }
 
-func deleteFolderCmd(store storage.Storage, folderID string) tea.Cmd {
+func deleteFolderCmd(store storage.Storage, folderID string, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		if err := store.DeleteFolder(ctx, folderID); err != nil {
 			return folderDeletedMsg{err: err}
 		}
@@ -310,9 +325,10 @@ func deleteFolderCmd(store storage.Storage, folderID string) tea.Cmd {
 	}
 }
 
-func renameFolderCmd(store storage.Storage, folderID, name string) tea.Cmd {
+func renameFolderCmd(store storage.Storage, folderID, name string, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		// Delete & recreate with same ID to "rename" (simple approach)
 		if err := store.DeleteFolder(ctx, folderID); err != nil {
 			return folderRenamedMsg{err: err}
@@ -329,9 +345,10 @@ func renameFolderCmd(store storage.Storage, folderID, name string) tea.Cmd {
 	}
 }
 
-func setFeedFolderCmd(store storage.Storage, feedID, folderID string) tea.Cmd {
+func setFeedFolderCmd(store storage.Storage, feedID, folderID string, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		if err := store.SetFeedFolder(ctx, feedID, folderID); err != nil {
 			return feedFolderSetMsg{err: err}
 		}
@@ -339,9 +356,10 @@ func setFeedFolderCmd(store storage.Storage, feedID, folderID string) tea.Cmd {
 	}
 }
 
-func markEntryReadCmd(store storage.Storage, entryID string) tea.Cmd {
+func markEntryReadCmd(store storage.Storage, entryID string, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		if err := store.MarkEntryRead(ctx, entryID); err != nil {
 			return errMsg{err}
 		}
@@ -349,9 +367,10 @@ func markEntryReadCmd(store storage.Storage, entryID string) tea.Cmd {
 	}
 }
 
-func markEntryUnreadCmd(store storage.Storage, entryID string) tea.Cmd {
+func markEntryUnreadCmd(store storage.Storage, entryID string, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		if err := store.MarkEntryUnread(ctx, entryID); err != nil {
 			return errMsg{err}
 		}
@@ -359,9 +378,10 @@ func markEntryUnreadCmd(store storage.Storage, entryID string) tea.Cmd {
 	}
 }
 
-func markUnreadAndReloadCmd(store storage.Storage, feedID string, showRead bool, entryID string, limit int) tea.Cmd {
+func markUnreadAndReloadCmd(store storage.Storage, feedID string, showRead bool, entryID string, limit int, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		if err := store.MarkEntryUnread(ctx, entryID); err != nil {
 			return errMsg{err}
 		}
@@ -379,9 +399,10 @@ func markUnreadAndReloadCmd(store storage.Storage, feedID string, showRead bool,
 	}
 }
 
-func addFeedCmd(tracker *feedtracker.Tracker, url string) tea.Cmd {
+func addFeedCmd(tracker *feedtracker.Tracker, url string, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		feed, err := tracker.AddFeed(ctx, url)
 		return feedAddedMsg{feed: feed, err: err}
 	}
@@ -437,9 +458,10 @@ func buildDisplayItems(feeds []*domain.Feed, folders []*domain.Folder, counts ma
 	return items
 }
 
-func exportFeedsCmd(store storage.Storage) tea.Cmd {
+func exportFeedsCmd(store storage.Storage, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		feeds, err := store.ListFeeds(ctx)
 		if err != nil {
 			return exportCompleteMsg{err: fmt.Errorf("list feeds: %w", err)}
@@ -481,9 +503,10 @@ func exportFeedsCmd(store storage.Storage) tea.Cmd {
 	}
 }
 
-func importFeedsCmd(tracker *feedtracker.Tracker, store storage.Storage, path string) tea.Cmd {
+func importFeedsCmd(tracker *feedtracker.Tracker, store storage.Storage, path string, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		specs, err := opml.ParseFile(path)
 		if err != nil {
 			return importCompleteMsg{err: fmt.Errorf("parse opml: %w", err)}
@@ -519,9 +542,10 @@ func importFeedsCmd(tracker *feedtracker.Tracker, store storage.Storage, path st
 	}
 }
 
-func deleteFeedCmd(store storage.Storage, feedID string) tea.Cmd {
+func deleteFeedCmd(store storage.Storage, feedID string, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		if err := store.DeleteFeed(ctx, feedID); err != nil {
 			return feedDeletedMsg{err: err}
 		}
@@ -529,9 +553,10 @@ func deleteFeedCmd(store storage.Storage, feedID string) tea.Cmd {
 	}
 }
 
-func fetchAllFeedsCmd(tracker *feedtracker.Tracker, store storage.Storage) tea.Cmd {
+func fetchAllFeedsCmd(tracker *feedtracker.Tracker, store storage.Storage, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		totalNew, err := tracker.FetchAllFeeds(ctx)
 		return fetchCompleteMsg{totalNew: totalNew, err: err}
 	}
@@ -550,9 +575,10 @@ func importPreviewCmd(tracker *feedtracker.Tracker, path string) tea.Cmd {
 	}
 }
 
-func searchEntriesCmd(store storage.Storage, query string, limit int) tea.Cmd {
+func searchEntriesCmd(store storage.Storage, query string, limit int, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		entries, err := store.SearchEntries(ctx, query, limit, 0)
 		if err != nil {
 			return errMsg{err}
@@ -561,9 +587,10 @@ func searchEntriesCmd(store storage.Storage, query string, limit int) tea.Cmd {
 	}
 }
 
-func markDisplayedReadCmd(store storage.Storage, entries []*domain.Entry) tea.Cmd {
+func markDisplayedReadCmd(store storage.Storage, entries []*domain.Entry, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		n := 0
 		for _, e := range entries {
 			if !e.Read {
@@ -577,9 +604,10 @@ func markDisplayedReadCmd(store storage.Storage, entries []*domain.Entry) tea.Cm
 	}
 }
 
-func markFeedReadAllCmd(store storage.Storage, feedID string) tea.Cmd {
+func markFeedReadAllCmd(store storage.Storage, feedID string, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		var err error
 		if feedID == "" {
 			err = store.MarkAllRead(ctx)
@@ -593,9 +621,10 @@ func markFeedReadAllCmd(store storage.Storage, feedID string) tea.Cmd {
 	}
 }
 
-func exportFilteredCmd(store storage.Storage, filter string) tea.Cmd {
+func exportFilteredCmd(store storage.Storage, filter string, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		feeds, err := store.ListFeeds(ctx)
 		if err != nil {
 			return exportCompleteMsg{err: fmt.Errorf("list feeds: %w", err)}

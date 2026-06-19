@@ -68,3 +68,8 @@
 | 64 | TUI: bulk mark-read | ✓ | `a` marks displayed, `A` marks all in feed |
 | 65 | Tests: storage search + mark-read | ✓ | 6 new tests |
 | 66 | Docs: README, plan.md, PROGRESS.md | ✓ | Phase 4 documented |
+| 67 | Storage: Vacuum / Optimize methods | ✓ | Added to interface + SQLite |
+| 68 | CLI: ft vacuum / ft db optimize | ✓ | New subcommands |
+| 69 | Fetcher: Fetch accepts context.Context | ✓ | Removed FetchWithTimeout |
+| 70 | TUI: replace context.Background() with timeouts | ✓ | 22 command functions + update.go inline call updated |
+| 71 | Tests: fetcher context param | ✓ | f.Fetch calls updated to pass context.Background() |

@@ -53,11 +53,35 @@ func (m model) feedsListView() string {
 	b.WriteString(helpStyle.Render("  [?] Help  [e] Export  [i] Import  [q] Quit"))
 	b.WriteString("\n\n")
 
-		if len(m.displayItems) == 0 {
+	if len(m.displayItems) == 0 {
 		b.WriteString(emptyStyle.Render("  No feeds tracked yet. Press 'a' to add one."))
 		b.WriteString("\n")
 	} else {
-		for i, item := range m.displayItems {
+		avail := m.height - 4 // header + blank + blank + status
+		if avail < 1 {
+			avail = 1
+		}
+
+		start, end := windowItems(len(m.displayItems), m.displayCursor, avail)
+		needsUp := start > 0
+		needsDown := end < len(m.displayItems)
+		indicatorLines := 0
+		if needsUp {
+			indicatorLines++
+		}
+		if needsDown {
+			indicatorLines++
+		}
+		avail -= indicatorLines
+		if avail < 1 {
+			avail = 1
+		}
+		start, end = windowItems(len(m.displayItems), m.displayCursor, avail)
+		needsUp = start > 0
+		needsDown = end < len(m.displayItems)
+
+		for i := start; i < end; i++ {
+			item := m.displayItems[i]
 			indent := strings.Repeat("  ", item.depth)
 
 			switch item.kind {
@@ -123,6 +147,15 @@ func (m model) feedsListView() string {
 				b.WriteString("\n")
 			}
 		}
+
+		if needsUp {
+			b.WriteString(scrollStyle.Render(fmt.Sprintf("  ↑ %d more", start)))
+			b.WriteString("\n")
+		}
+		if needsDown {
+			b.WriteString(scrollStyle.Render(fmt.Sprintf("  ↓ %d more", len(m.displayItems)-end)))
+			b.WriteString("\n")
+		}
 	}
 
 	b.WriteString("\n")
@@ -155,7 +188,38 @@ func (m model) entriesListView() string {
 		b.WriteString(emptyStyle.Render("  No entries found."))
 		b.WriteString("\n")
 	} else {
-		for i, entry := range m.entries {
+		showLoadMore := len(m.entries) >= m.entryPageSize
+
+		overhead := 4 // header + blank + blank + status
+		if showLoadMore {
+			overhead++
+		}
+		avail := m.height - overhead
+		if avail < 1 {
+			avail = 1
+		}
+
+		// Two-pass: compute window, check indicator lines needed, then adjust
+		start, end := windowItems(len(m.entries), m.entryCursor, avail)
+		needsUp := start > 0
+		needsDown := end < len(m.entries)
+		indicatorLines := 0
+		if needsUp {
+			indicatorLines++
+		}
+		if needsDown {
+			indicatorLines++
+		}
+		avail -= indicatorLines
+		if avail < 1 {
+			avail = 1
+		}
+		start, end = windowItems(len(m.entries), m.entryCursor, avail)
+		needsUp = start > 0
+		needsDown = end < len(m.entries)
+
+		for i := start; i < end; i++ {
+			entry := m.entries[i]
 			pub := "(no date)"
 			if !entry.PublishedAt.IsZero() {
 				pub = entry.PublishedAt.Format("2006-01-02 15:04")
@@ -195,7 +259,16 @@ func (m model) entriesListView() string {
 			b.WriteString("\n")
 		}
 
-		if len(m.entries) >= m.entryPageSize {
+		if needsUp {
+			b.WriteString(scrollStyle.Render(fmt.Sprintf("  ↑ %d more", start)))
+			b.WriteString("\n")
+		}
+		if needsDown {
+			b.WriteString(scrollStyle.Render(fmt.Sprintf("  ↓ %d more", len(m.entries)-end)))
+			b.WriteString("\n")
+		}
+
+		if showLoadMore {
 			b.WriteString(helpStyle.Render(fmt.Sprintf("  [L] Load more (%d loaded)", len(m.entries))))
 			b.WriteString("\n")
 		}
@@ -284,6 +357,10 @@ func (m model) helpView() string {
 		"  Navigation",
 		"    ↑/k         Move up",
 		"    ↓/j         Move down",
+		"    PgUp        Page up",
+		"    PgDn        Page down",
+		"    Home        Go to first",
+		"    End         Go to last",
 		"    Enter       Select / Confirm",
 		"    Esc         Back",
 		"",
@@ -430,6 +507,23 @@ func widthForCol(totalWidth, max int) int {
 		return min(20, max)
 	}
 	return min(totalWidth-30, max)
+}
+
+func windowItems(total, cursor, capacity int) (start, end int) {
+	if total <= capacity {
+		return 0, total
+	}
+	half := capacity / 2
+	start = cursor - half
+	if start < 0 {
+		start = 0
+	}
+	end = start + capacity
+	if end > total {
+		end = total
+		start = total - capacity
+	}
+	return
 }
 
 func unreadCountStr(n int) string {

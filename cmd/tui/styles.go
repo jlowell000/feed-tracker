@@ -62,6 +62,9 @@ var (
 	dimmedStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#666666"))
 
+	scrollStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#555555"))
+
 	emptyStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#888888")).
 			Italic(true)

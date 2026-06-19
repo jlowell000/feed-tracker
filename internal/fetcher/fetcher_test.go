@@ -1,6 +1,7 @@
 package fetcher
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -26,7 +27,7 @@ func TestFetchSuccess(t *testing.T) {
 	defer ts.Close()
 
 	f := newTestFetcher()
-	result, err := f.Fetch(ts.URL, "", "")
+	result, err := f.Fetch(context.Background(), ts.URL, "", "")
 	if err != nil {
 		t.Fatalf("Fetch: %v", err)
 	}
@@ -54,7 +55,7 @@ func TestFetchNotModified(t *testing.T) {
 	defer ts.Close()
 
 	f := newTestFetcher()
-	result, err := f.Fetch(ts.URL, `"abc123"`, "")
+	result, err := f.Fetch(context.Background(), ts.URL, `"abc123"`, "")
 	if err != nil {
 		t.Fatalf("Fetch: %v", err)
 	}
@@ -76,7 +77,7 @@ func TestFetchIfModifiedSince(t *testing.T) {
 	defer ts.Close()
 
 	f := newTestFetcher()
-	result, err := f.Fetch(ts.URL, "", "Mon, 01 Jan 2024 00:00:00 GMT")
+	result, err := f.Fetch(context.Background(), ts.URL, "", "Mon, 01 Jan 2024 00:00:00 GMT")
 	if err != nil {
 		t.Fatalf("Fetch: %v", err)
 	}
@@ -92,7 +93,7 @@ func TestFetchServerError(t *testing.T) {
 	defer ts.Close()
 
 	f := newTestFetcher()
-	_, err := f.Fetch(ts.URL, "", "")
+	_, err := f.Fetch(context.Background(), ts.URL, "", "")
 	if err == nil {
 		t.Fatal("expected error for 500")
 	}
@@ -105,7 +106,7 @@ func TestFetchNotFound(t *testing.T) {
 	defer ts.Close()
 
 	f := newTestFetcher()
-	_, err := f.Fetch(ts.URL, "", "")
+	_, err := f.Fetch(context.Background(), ts.URL, "", "")
 	if err == nil {
 		t.Fatal("expected error for 404")
 	}
@@ -119,7 +120,7 @@ func TestFetchTimeout(t *testing.T) {
 	defer ts.Close()
 
 	f := New(config.HTTPConfig{Timeout: 1 * time.Millisecond, UserAgent: "test/1.0"})
-	_, err := f.Fetch(ts.URL, "", "")
+	_, err := f.Fetch(context.Background(), ts.URL, "", "")
 	if err == nil {
 		t.Fatal("expected timeout error")
 	}
@@ -132,7 +133,7 @@ func TestFetchPreservesETagOnEmptyResponse(t *testing.T) {
 	defer ts.Close()
 
 	f := newTestFetcher()
-	result, err := f.Fetch(ts.URL, `"old-etag"`, "")
+	result, err := f.Fetch(context.Background(), ts.URL, `"old-etag"`, "")
 	if err != nil {
 		t.Fatalf("Fetch: %v", err)
 	}
@@ -149,7 +150,7 @@ func TestFetchPreservesLastModifiedOnEmptyResponse(t *testing.T) {
 	defer ts.Close()
 
 	f := newTestFetcher()
-	result, err := f.Fetch(ts.URL, "", "old-modified")
+	result, err := f.Fetch(context.Background(), ts.URL, "", "old-modified")
 	if err != nil {
 		t.Fatalf("Fetch: %v", err)
 	}

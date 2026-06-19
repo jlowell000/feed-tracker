@@ -38,7 +38,7 @@ func (t *Tracker) shouldFetch(feed *domain.Feed) bool {
 }
 
 func (t *Tracker) AddFeed(ctx context.Context, feedURL string) (*domain.Feed, error) {
-	result, err := t.fetcher.Fetch(feedURL, "", "")
+	result, err := t.fetcher.Fetch(ctx, feedURL, "", "")
 	if err != nil {
 		return nil, fmt.Errorf("fetch feed url: %w", err)
 	}
@@ -75,7 +75,7 @@ func (t *Tracker) AddFeed(ctx context.Context, feedURL string) (*domain.Feed, er
 }
 
 func (t *Tracker) FetchFeed(ctx context.Context, feed *domain.Feed) (int, error) {
-	result, err := t.fetcher.Fetch(feed.FeedURL, feed.ETag, feed.LastModified)
+	result, err := t.fetcher.Fetch(ctx, feed.FeedURL, feed.ETag, feed.LastModified)
 	if err != nil {
 		return 0, fmt.Errorf("fetch %s: %w", feed.FeedURL, err)
 	}

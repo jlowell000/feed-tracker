@@ -326,6 +326,22 @@ func (s *sqliteStorage) SearchEntries(ctx context.Context, query string, limit, 
 	return entries, rows.Err()
 }
 
+func (s *sqliteStorage) Vacuum(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, `VACUUM`)
+	if err != nil {
+		return fmt.Errorf("vacuum: %w", err)
+	}
+	return nil
+}
+
+func (s *sqliteStorage) Optimize(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, `PRAGMA optimize`)
+	if err != nil {
+		return fmt.Errorf("optimize: %w", err)
+	}
+	return nil
+}
+
 type scanner interface {
 	Scan(dest ...any) error
 }

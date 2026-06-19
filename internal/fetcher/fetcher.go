@@ -1,10 +1,10 @@
 package fetcher
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/jlowell000/feed-tracker/internal/config"
 )
@@ -28,8 +28,8 @@ func New(cfg config.HTTPConfig) *Fetcher {
 	}
 }
 
-func (f *Fetcher) Fetch(url, etag, lastModified string) (*Result, error) {
-	req, err := http.NewRequest("GET", url, nil)
+func (f *Fetcher) Fetch(ctx context.Context, url, etag, lastModified string) (*Result, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -75,9 +75,4 @@ func (f *Fetcher) Fetch(url, etag, lastModified string) (*Result, error) {
 	}
 
 	return result, nil
-}
-
-func (f *Fetcher) FetchWithTimeout(url string, timeout time.Duration) (*Result, error) {
-	f.client.Timeout = timeout
-	return f.Fetch(url, "", "")
 }

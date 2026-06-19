@@ -147,19 +147,20 @@ tui:
 
 ---
 
-## Phase 5: Hardening & Polish (next)
+## Phase 5: Hardening & Polish ✅ (partial)
 
----
-
-## Phase 5: Hardening & Polish (next after P4)
-
-### Suggested scope
+### Completed items
 
 | Item | Approach |
 |---|---|
-| **Context timeouts** | Plumb context with timeouts from CLI/TUI entry points through to all storage/HTTP calls. Replace remaining `context.Background()` uses. |
+| **Context timeouts (storage layer)** | `Fetch` now accepts `context.Context`; `FetchWithTimeout` removed. CLI root context wraps config timeout via `context.WithTimeout`. TUI all 22 command functions pass timeout from config. Bare `context.Background()` eliminated from TUI commands. |
+| **Database maintenance** | `Vacuum(ctx)` and `Optimize(ctx)` added to storage interface + SQLite. `ft vacuum` and `ft db optimize` CLI subcommands added. |
+
+### Remaining for Phase 5
+
+| Item | Approach |
+|---|---|
 | **Virtualized feed list** | Refactor `buildDisplayItems` to only render visible rows. Worthwhile above ~200 feeds. |
-| **Database maintenance** | Add a `prune` or `vacuum` command. Auto-VACUUM on delete thresholds. |
 | **Browser-open in CLI** | Add `feed-tracker open <id>` to open feed URL in browser. |
 | **Feed title/URL editing** | Allow editing feed metadata from TUI and CLI. |
 | **Lazy content/summary** | Skip loading `content`/`summary` columns in list queries; load on detail view. Currently low ROI since JOIN removal already covers main query cost. |
