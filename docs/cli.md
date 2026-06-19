@@ -70,6 +70,7 @@ cp config.example.yaml config.yaml
 | `search [--limit <n>] <query>` | Search entries by keyword across title and summary |
 | `read [--all \| --feed <name> \| --feed-id <id> \| <entry-id>]` | Mark entries as read: all, by feed, or single entry |
 | `unread <entry-id>` | Mark an entry as unread |
+| `prune` | Delete entries older than the configured `prune.max_age` |
 | `completion bash\|zsh` | Generate shell completion script |
 
 ## Cron Setup

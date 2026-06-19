@@ -74,6 +74,21 @@ func (t *Tracker) AddFeed(ctx context.Context, feedURL string) (*domain.Feed, er
 	return feed, nil
 }
 
+func (t *Tracker) Prune(ctx context.Context) {
+	maxAge := time.Duration(t.cfg.Prune.MaxAge)
+	if maxAge <= 0 {
+		return
+	}
+	n, err := t.store.DeleteEntriesOlderThan(ctx, maxAge)
+	if err != nil {
+		log.Printf("warning: auto-prune: %v", err)
+		return
+	}
+	if n > 0 {
+		log.Printf("auto-prune: removed %d entr%s older than %s", n, map[bool]string{true: "y", false: "ies"}[n == 1], maxAge)
+	}
+}
+
 func (t *Tracker) FetchFeed(ctx context.Context, feed *domain.Feed) (int, error) {
 	result, err := t.fetcher.Fetch(ctx, feed.FeedURL, feed.ETag, feed.LastModified)
 	if err != nil {
@@ -121,6 +136,8 @@ func (t *Tracker) FetchFeed(ctx context.Context, feed *domain.Feed) (int, error)
 	if err := t.store.UpdateFeed(ctx, feed); err != nil {
 		log.Printf("warning: update feed after fetch: %v", err)
 	}
+
+	t.Prune(ctx)
 
 	return newCount, nil
 }

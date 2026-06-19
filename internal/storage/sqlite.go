@@ -326,6 +326,23 @@ func (s *sqliteStorage) SearchEntries(ctx context.Context, query string, limit, 
 	return entries, rows.Err()
 }
 
+func (s *sqliteStorage) DeleteEntriesOlderThan(ctx context.Context, age time.Duration) (int64, error) {
+	if age <= 0 {
+		return 0, nil
+	}
+	cutoff := time.Now().Add(-age)
+	const q = `DELETE FROM entries WHERE published_at != '' AND published_at < ?`
+	res, err := s.db.ExecContext(ctx, q, cutoff.Format(time.RFC3339))
+	if err != nil {
+		return 0, fmt.Errorf("delete entries older than: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
 func (s *sqliteStorage) Vacuum(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx, `VACUUM`)
 	if err != nil {

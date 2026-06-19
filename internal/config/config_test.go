@@ -79,6 +79,26 @@ func TestLoadWithTUIConfig(t *testing.T) {
 	}
 }
 
+func TestLoadWithPruneConfig(t *testing.T) {
+	yaml := `prune:
+  max_age: 90d
+`
+	f, err := os.CreateTemp(t.TempDir(), "config*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	f.WriteString(yaml)
+
+	cfg, err := Load(f.Name())
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if time.Duration(cfg.Prune.MaxAge) != 90*24*time.Hour {
+		t.Errorf("MaxAge = %v, want %v", time.Duration(cfg.Prune.MaxAge), 90*24*time.Hour)
+	}
+}
+
 func TestLoadMissingFile(t *testing.T) {
 	_, err := Load("/nonexistent/config.yaml")
 	if err == nil {

@@ -10,3 +10,6 @@ http:
 tui:
   entry_limit: 100
   auto_refresh: 5m
+
+prune:
+  max_age: 0

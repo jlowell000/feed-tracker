@@ -16,6 +16,9 @@ tui:
   entry_limit: 100      # max entries loaded per page in TUI
   entry_page_size: 50   # entries loaded per page (aliased from entry_limit)
   auto_refresh: 5m      # auto-fetch interval (e.g. 5m, 30m, 0 to disable)
+
+prune:
+  max_age: 30d          # delete entries older than this (e.g. 30d, 90d, 0 to disable)
 ```
 
 ## Fields
@@ -41,3 +44,9 @@ tui:
 |---|---|---|
 | `entry_limit` | `100` | Max entries loaded per page in TUI |
 | `auto_refresh` | `0` | Auto-fetch interval (e.g. `5m`, `30m`, `0` to disable) |
+
+### prune
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `max_age` | `0` | Delete entries older than this duration (e.g. `30d`, `90d`). `0` disables pruning. |

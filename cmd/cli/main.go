@@ -94,6 +94,8 @@ func main() {
 		runRead(ctx, *cfgPath, remaining)
 	case "unread":
 		runUnread(ctx, *cfgPath, remaining)
+	case "prune":
+		runPrune(ctx, *cfgPath)
 	case "vacuum":
 		runVacuum(ctx, *cfgPath)
 	case "db":
@@ -121,6 +123,7 @@ Commands:
   search [--limit <n>] <query>  Search entries by keyword
   read   [--all | --feed <name> | --feed-id <id> | <entry-id>]  Mark entries as read
   unread <entry-id>  Mark entry as unread
+  prune             Delete entries older than the configured prune.max_age
   vacuum            Reclaim database storage space (VACUUM)
   db     optimize   Optimize database performance (PRAGMA optimize)
   completion bash|zsh  Generate shell completion script

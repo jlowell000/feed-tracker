@@ -148,17 +148,20 @@ tui:
 
 ---
 
-## Phase 6: Automatic Entry Pruning
+## Phase 6: Automatic Entry Pruning ✅
 
-Global automatic deletion of entries based on age, replacing manual bulk delete.
+> Completed — all items implemented.
 
-| Item | Approach |
+### What was done
+
+| Item | Files changed |
 |---|---|
-| **Config: `prune.max_age`** | Add to `config.example.yaml` (e.g. `30d`, `90d`, `0` to disable) |
-| **Storage: `DeleteEntriesOlderThan`** | New method on storage interface + SQLite impl (`DELETE FROM entries WHERE published_at < ?`) |
-| **CLI: `ft prune`** | New command to trigger manual prune |
-| **Auto-prune after fetch** | Run prune automatically after `ft fetch` based on config |
-| **Tests** | Storage prune query, CLI command |
+| **Config: `prune.max_age`** | `internal/config/config.go`, `config.example.yaml` |
+| **Storage: `DeleteEntriesOlderThan`** | `internal/storage/storage.go`, `internal/storage/sqlite.go` |
+| **CLI: `ft prune`** | `cmd/cli/prune.go` (new), `cmd/cli/main.go` |
+| **Auto-prune after fetch** | `internal/feedtracker/tracker.go` (Prune method), `cmd/cli/fetch.go` |
+| **Tests** | `internal/storage/sqlite_test.go` (3 new tests: basic, zero-age, all-deleted) |
+| **Docs** | `tasks/plan.md`, `tasks/PROGRESS.md`, `docs/cli.md`, `docs/config.md` |
 
 > Future: per-feed-type and per-feed pruning controls deferred to Phase 9.
 
@@ -210,7 +213,7 @@ Per-feed-type and per-feed overrides for entry age-based deletion.
 7. ✅ ~~Makefile + build tooling~~ (Phase 3b complete)
 8. ✅ ~~Search, filters & bulk mark-read~~ (Phase 4 complete)
 9. ✅ ~~Phase 5~~ — Hardening & polish (completed)
-10. **Phase 6** — Automatic entry pruning (global)
+10. ✅ ~~Phase 6~~ — Automatic entry pruning (completed)
 11. **Phase 7** — Feed & entry management
 12. **Phase 8** — Performance & polish
 13. **Phase 9** — Granular pruning controls (per-feed-type, per-feed)

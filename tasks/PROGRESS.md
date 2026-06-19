@@ -110,3 +110,13 @@
 | 69 | Fetcher: Fetch accepts context.Context | ✓ |
 | 70 | TUI: replace context.Background() with timeouts | ✓ |
 | 71 | Tests: fetcher context param | ✓ |
+
+## Phase 6: Automatic Entry Pruning
+
+| # | Step | Status |
+|---|---|---|
+| 72 | Config: prune.max_age field + example yaml | ✓ |
+| 73 | Storage: DeleteEntriesOlderThan method + SQLite impl | ✓ |
+| 74 | CLI: ft prune command | ✓ |
+| 75 | Auto-prune after ft fetch | ✓ |
+| 76 | Tests: storage DeleteEntriesOlderThan (basic, zero-age, all-deleted) | ✓ |

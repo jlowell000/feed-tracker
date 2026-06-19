@@ -751,3 +751,101 @@ func TestMarkAllRead(t *testing.T) {
 		t.Errorf("entries still exist = %d, want 2", len(entries))
 	}
 }
+
+func TestDeleteEntriesOlderThan(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+
+	now := time.Now()
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feedID, ExternalID: "old",
+		Title: "Old Entry", PublishedAt: now.Add(-90 * 24 * time.Hour), FetchedAt: time.Now(),
+	})
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feedID, ExternalID: "recent",
+		Title: "Recent Entry", PublishedAt: now.Add(-5 * 24 * time.Hour), FetchedAt: time.Now(),
+	})
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feedID, ExternalID: "today",
+		Title: "Today Entry", PublishedAt: now, FetchedAt: time.Now(),
+	})
+
+	n, err := s.DeleteEntriesOlderThan(ctx, 30*24*time.Hour)
+	if err != nil {
+		t.Fatalf("DeleteEntriesOlderThan: %v", err)
+	}
+	if n != 1 {
+		t.Errorf("deleted %d, want 1", n)
+	}
+
+	remaining, err := s.ListEntries(ctx, feedID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListEntries: %v", err)
+	}
+	if len(remaining) != 2 {
+		t.Fatalf("len(remaining) = %d, want 2", len(remaining))
+	}
+	if remaining[0].Title != "Today Entry" {
+		t.Errorf("remaining[0].Title = %q, want %q", remaining[0].Title, "Today Entry")
+	}
+	if remaining[1].Title != "Recent Entry" {
+		t.Errorf("remaining[1].Title = %q, want %q", remaining[1].Title, "Recent Entry")
+	}
+}
+
+func TestDeleteEntriesOlderThan_ZeroAge(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feedID, ExternalID: "e1",
+		Title: "Entry", PublishedAt: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), FetchedAt: time.Now(),
+	})
+
+	n, err := s.DeleteEntriesOlderThan(ctx, 0)
+	if err != nil {
+		t.Fatalf("DeleteEntriesOlderThan(0): %v", err)
+	}
+	if n != 0 {
+		t.Errorf("deleted %d, want 0", n)
+	}
+}
+
+func TestDeleteEntriesOlderThan_AllDeleted(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feedID, ExternalID: "v1",
+		Title: "Very Old", PublishedAt: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), FetchedAt: time.Now(),
+	})
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feedID, ExternalID: "v2",
+		Title: "Also Old", PublishedAt: time.Date(2020, 6, 1, 0, 0, 0, 0, time.UTC), FetchedAt: time.Now(),
+	})
+
+	n, err := s.DeleteEntriesOlderThan(ctx, 1*time.Hour)
+	if err != nil {
+		t.Fatalf("DeleteEntriesOlderThan: %v", err)
+	}
+	if n != 2 {
+		t.Errorf("deleted %d, want 2", n)
+	}
+
+	remaining, err := s.ListEntries(ctx, feedID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListEntries: %v", err)
+	}
+	if len(remaining) != 0 {
+		t.Errorf("len(remaining) = %d, want 0", len(remaining))
+	}
+}

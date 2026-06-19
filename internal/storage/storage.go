@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"time"
 
 	"github.com/jlowell000/feed-tracker/internal/domain"
 )
@@ -35,6 +36,8 @@ type Storage interface {
 	UnreadCountByFeed(ctx context.Context) (map[string]int, error)
 
 	SearchEntries(ctx context.Context, query string, limit, offset int) ([]*domain.Entry, error)
+
+	DeleteEntriesOlderThan(ctx context.Context, age time.Duration) (int64, error)
 
 	Vacuum(ctx context.Context) error
 	Optimize(ctx context.Context) error
