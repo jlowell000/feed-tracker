@@ -172,7 +172,7 @@ tui:
 Items deferred across all completed phases, ordered by estimated value:
 
 | Priority | Item | Phase | Notes |
-|---|---|---|---|---|
+|---|---|---|---|
 | High | Context deadlines + timeouts | P2 | Still `context.Background()` everywhere. Non-trivial — touches all CLI/TUI entry points. |
 | High | FTS5 full-text search | P4 | LIKE-based search implemented in Phase 4; upgrade to FTS5 for performance |
 | High | Bulk delete read entries | P4 | Deferred from Phase 4; needs confirmation UX |
