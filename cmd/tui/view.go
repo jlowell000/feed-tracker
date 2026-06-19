@@ -40,8 +40,12 @@ func (m model) View() string {
 		return m.importDryRunView()
 	case exportPickScreen:
 		return m.exportPickView()
+	case feedPickScreen:
+		return m.feedPickView()
 	case searchScreen:
 		return m.searchView()
+	case editFeedScreen:
+		return m.editFeedView()
 	}
 	return ""
 }
@@ -169,6 +173,13 @@ func (m model) entriesListView() string {
 	title := "All Entries"
 	if m.feed != nil && m.feed.Title != "" {
 		title = m.feed.Title
+	} else if m.feed == nil && m.filterFeedID != "" {
+		for _, f := range m.feeds {
+			if f.ID == m.filterFeedID {
+				title = fmt.Sprintf("Filter: %s", f.Title)
+				break
+			}
+		}
 	} else if m.feed == nil {
 		title = "All Entries"
 	}
@@ -334,6 +345,30 @@ func entryDetailContent(m model) string {
 	return b.String()
 }
 
+func (m model) editFeedView() string {
+	var b strings.Builder
+
+	b.WriteString(headerStyle.Render(" < Edit Feed"))
+	b.WriteString(helpStyle.Render("  [Enter] Save  [Esc] Cancel  [q] Quit"))
+	b.WriteString("\n\n")
+
+	b.WriteString(detailLabelStyle.Render("  Title:"))
+	b.WriteString("\n\n")
+	b.WriteString("  ")
+	b.WriteString(m.editTitleInput.View())
+	b.WriteString("\n\n")
+
+	b.WriteString(detailLabelStyle.Render("  URL:"))
+	b.WriteString("\n\n")
+	b.WriteString("  ")
+	b.WriteString(m.editURLInput.View())
+	b.WriteString("\n")
+
+	b.WriteString("\n")
+	b.WriteString(m.statusBar())
+	return b.String()
+}
+
 func (m model) addFeedView() string {
 	var b strings.Builder
 
@@ -367,13 +402,14 @@ func (m model) helpView() string {
 		"  Actions",
 		"    a           Add a new feed",
 		"    e           Export feeds to OPML (filter options)",
+		"    E           Edit feed title or URL",
 		"    i           Import feeds from OPML (preview first)",
 		"    g           Create a folder",
 		"    m           Move feed to folder",
 		"    d           Delete folder or feed",
 		"    R           Rename folder",
 		"    Enter/Space Toggle folder collapse",
-		"    f           Fetch all feeds",
+		"    f           Fetch all feeds (feed list) / Filter by feed (entries list)",
 		"    r           Refresh current view",
 		"    u           Toggle show read entries",
 		"    L           Load more entries (paginated)",
@@ -382,6 +418,8 @@ func (m model) helpView() string {
 		"    A           Mark all entries in feed as read",
 		"    o           Open entry URL in browser",
 		"    M           Mark entry unread",
+		"    [ / ]       Previous/next feed",
+		"    E           Edit feed title or URL (feed list)",
 		"",
 		"  Feed List",
 		"    All Entries Shows entries from all feeds",
@@ -694,6 +732,33 @@ func (m model) exportPickView() string {
 	b.WriteString("\n")
 	b.WriteString(normalItemStyle.Render("  u  Ungrouped feeds only"))
 	b.WriteString("\n")
+
+	b.WriteString("\n")
+	b.WriteString(m.statusBar())
+	return b.String()
+}
+
+func (m model) feedPickView() string {
+	var b strings.Builder
+	b.WriteString(headerStyle.Render(" < Filter by Feed"))
+	b.WriteString(helpStyle.Render("  [Enter] Confirm  [Esc] Cancel  [q] Quit"))
+	b.WriteString("\n\n")
+
+	b.WriteString(detailLabelStyle.Render("  Enter feed number (0 for none):"))
+	b.WriteString("\n\n")
+	b.WriteString("  ")
+	b.WriteString(m.textInput.View())
+	b.WriteString("\n\n")
+
+	for i, f := range m.feeds {
+		title := f.Title
+		if title == "" {
+			title = "(no title)"
+		}
+		line := fmt.Sprintf("  %d  %s", i+1, title)
+		b.WriteString(normalItemStyle.Render(line))
+		b.WriteString("\n")
+	}
 
 	b.WriteString("\n")
 	b.WriteString(m.statusBar())

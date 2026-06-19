@@ -78,6 +78,8 @@ func main() {
 		runFetch(ctx, *cfgPath, remaining)
 	case "feeds":
 		runFeeds(ctx, *cfgPath, remaining)
+	case "feed":
+		runFeed(ctx, *cfgPath, remaining)
 	case "folder":
 		runFolder(ctx, *cfgPath, remaining)
 	case "import":
@@ -94,6 +96,8 @@ func main() {
 		runRead(ctx, *cfgPath, remaining)
 	case "unread":
 		runUnread(ctx, *cfgPath, remaining)
+	case "open":
+		runOpen(ctx, *cfgPath, remaining)
 	case "prune":
 		runPrune(ctx, *cfgPath)
 	case "vacuum":
@@ -115,6 +119,7 @@ Commands:
   add    <url>      Add a new feed by URL
   fetch  [<name> | --feed-id <id>]  Fetch new entries from feed(s)
   feeds             List all tracked feeds
+  feed   update <name> [--title <title>] [--url <url>]  Update feed title or URL
   folder [create|delete|rename]  Manage folders
   import [--dry-run] <file.opml>  Import feeds from OPML file
   export [--output <file>]        Export feeds to OPML file
@@ -123,6 +128,7 @@ Commands:
   search [--limit <n>] <query>  Search entries by keyword
   read   [--all | --feed <name> | --feed-id <id> | <entry-id>]  Mark entries as read
   unread <entry-id>  Mark entry as unread
+  open   <entry-id>  Open entry URL in system browser
   prune             Delete entries older than the configured prune.max_age
   vacuum            Reclaim database storage space (VACUUM)
   db     optimize   Optimize database performance (PRAGMA optimize)

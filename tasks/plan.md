@@ -167,14 +167,22 @@ tui:
 
 ---
 
-## Phase 7: Feed & Entry Management
+## Phase 7: Feed & Entry Management ✅
 
-| Item | Approach |
+> Completed — all items implemented.
+
+### What was done
+
+| Item | Files changed |
 |---|---|
-| **Feed title/URL editing** | CLI: `ft feed update <name> --title ... --url ...`. TUI: edit screen on feed select. |
-| **Browser-open in CLI** | `ft open <entry-id>` — opens entry URL in system browser. |
-| **Entry filter by feed** | Filter entries by feed while in All Entries view (TUI). |
-| **Keyboard-driven feed switching** | Navigate between feeds via keyboard shortcuts in TUI. |
+| **CLI: `ft feed update`** | `cmd/cli/feed.go` (new), `cmd/cli/main.go`, `cmd/cli/completion.go` |
+| **Storage: `GetEntry`** | `internal/storage/storage.go`, `internal/storage/sqlite.go`, `internal/storage/sqlite_test.go` |
+| **CLI: `ft open`** | `cmd/cli/open.go` (new), `cmd/cli/main.go`, `cmd/cli/completion.go` |
+| **TUI: feed edit screen (`E` key)** | `cmd/tui/model.go`, `cmd/tui/update.go`, `cmd/tui/view.go` |
+| **TUI: entry filter by feed (`f` key)** | `cmd/tui/model.go`, `cmd/tui/update.go`, `cmd/tui/view.go` |
+| **TUI: feed switching (`[` / `]`)** | `cmd/tui/update.go`, `cmd/tui/view.go` |
+| **Tests** | `internal/storage/sqlite_test.go` (TestGetEntry, TestGetEntry_Missing) |
+| **Docs** | `tasks/plan.md`, `tasks/PROGRESS.md`, `docs/cli.md` |
 
 ---
 
@@ -186,6 +194,9 @@ tui:
 | **Virtualized feed list** | Refactor `buildDisplayItems` to only render visible rows. Pays off at 200+ feeds. |
 | **Lazy content/summary** | Skip loading content/summary columns in list queries; load on detail view. |
 | **TUI auto-refresh countdown** | Show time remaining until next auto-refresh in status bar. |
+| **Context-aware help screen** | Filter the help view (`?`) to show only keybindings relevant to the current screen instead of all at once. |
+| **On-screen key hints** | Expand the header bar on each screen to show all available keyboard commands (not just a subset). E.g. entries list shows `[f] Filter [u] ... [s] ... [a] ... [A] ... [L] ... [\[] [/] ... [E] Edit ... [r] ... [Esc] [q]`; feed list shows `[a] ... [e] ... [E] ... [i] ... [g] ... [r] ... [f] ... [?]`. |
+| **Edit feed from entries list** | Allow `E` key in entries list screen to edit the current feed's title/URL (reuses the edit feed screen). Currently only available in the feed list. |
 | **Domain package tests** | Low-value but completes test coverage for trivial getter structs. |
 
 ---
@@ -214,6 +225,6 @@ Per-feed-type and per-feed overrides for entry age-based deletion.
 8. ✅ ~~Search, filters & bulk mark-read~~ (Phase 4 complete)
 9. ✅ ~~Phase 5~~ — Hardening & polish (completed)
 10. ✅ ~~Phase 6~~ — Automatic entry pruning (completed)
-11. **Phase 7** — Feed & entry management
+11. ✅ ~~Phase 7~~ — Feed & entry management (completed)
 12. **Phase 8** — Performance & polish
 13. **Phase 9** — Granular pruning controls (per-feed-type, per-feed)

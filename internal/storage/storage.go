@@ -20,6 +20,7 @@ type Storage interface {
 
 	AddFeed(ctx context.Context, feed *domain.Feed) error
 	GetFeed(ctx context.Context, id string) (*domain.Feed, error)
+	GetEntry(ctx context.Context, id string) (*domain.Entry, error)
 	GetFeedByURL(ctx context.Context, url string) (*domain.Feed, error)
 	GetFeedByTitle(ctx context.Context, title string) (*domain.Feed, error)
 	ListFeeds(ctx context.Context) ([]*domain.Feed, error)

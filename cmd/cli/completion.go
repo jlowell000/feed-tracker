@@ -22,7 +22,7 @@ const bashCompletionScript = `_ft_completions() {
     _init_completion || return
 
     if [ $cword -eq 1 ]; then
-        COMPREPLY=($(compgen -W "migrate add fetch feeds folder import export delete list search read unread prune vacuum completion" -- "$cur"))
+        COMPREPLY=($(compgen -W "migrate add fetch feeds feed folder import export delete list search read unread open prune vacuum completion" -- "$cur"))
         return
     fi
 
@@ -39,6 +39,14 @@ const bashCompletionScript = `_ft_completions() {
                     COMPREPLY=($(compgen -W "$(ft feeds --names 2>/dev/null)" -- "$cur"))
                     ;;
             esac
+            ;;
+        feed)
+            if [ $cword -eq 2 ]; then
+                COMPREPLY=($(compgen -W "update" -- "$cur"))
+            fi
+            if [ $cword -ge 3 ] && [ ${words[2]} = "update" ]; then
+                COMPREPLY=($(compgen -W "--title --url" -- "$cur"))
+            fi
             ;;
         folder)
             if [ $cword -eq 2 ]; then
@@ -81,6 +89,7 @@ _ft() {
         'add:Add a new feed by URL'
         'fetch:Fetch new entries from feed(s)'
         'feeds:List all tracked feeds'
+        'feed:Manage feed settings'
         'folder:Manage folders (create/delete/rename/move)'
         'import:Import feeds from OPML file'
         'export:Export feeds to OPML file'
@@ -89,6 +98,7 @@ _ft() {
         'read:Mark entry as read'
         'unread:Mark entry as unread'
         'search:Search entries by keyword'
+        'open:Open entry URL in system browser'
         'prune:Delete entries older than configured max_age'
         'vacuum:Reclaim database storage space'
         'completion:Generate shell completion script'
@@ -109,6 +119,11 @@ _ft() {
                     _alternative \
                         'feed-name::feed name:($(ft feeds --names 2>/dev/null))' \
                         'feed-id:feed id:'
+                    ;;
+                feed)
+                    _arguments '2:subcommand:(update)' \
+                        '--title[new feed title]' \
+                        '--url[new feed URL]'
                     ;;
                 folder)
                     _arguments '2:subcommand:(create delete rename move)'

@@ -100,6 +100,12 @@ func (s *sqliteStorage) GetFeedByTitle(ctx context.Context, title string) (*doma
 	return scanFeed(row)
 }
 
+func (s *sqliteStorage) GetEntry(ctx context.Context, id string) (*domain.Entry, error) {
+	const q = `SELECT ` + entryCols + `, '' as feed_title FROM entries WHERE id = ?`
+	row := s.db.QueryRowContext(ctx, q, id)
+	return scanEntry(row)
+}
+
 func (s *sqliteStorage) ListFeeds(ctx context.Context) ([]*domain.Feed, error) {
 	const q = `SELECT ` + feedCols + ` FROM feeds ORDER BY title`
 	rows, err := s.db.QueryContext(ctx, q)

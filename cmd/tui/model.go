@@ -49,6 +49,8 @@ const (
 	importDryRunScreen
 	exportPickScreen
 	searchScreen
+	editFeedScreen
+	feedPickScreen
 )
 
 type model struct {
@@ -76,8 +78,12 @@ type model struct {
 	renameFolderID string
 	exportFilter   string
 	importSpecs    []opml.FeedSpec
+	editFeed       *domain.Feed
+	editTitleInput textinput.Model
+	editURLInput   textinput.Model
 
-	searchQuery string
+	searchQuery  string
+	filterFeedID string
 
 	err    error
 	status string
@@ -177,11 +183,25 @@ type entriesMarkedReadMsg struct {
 
 type feedMarkedReadMsg struct{}
 
+type feedUpdatedMsg struct {
+	err error
+}
+
 func initialModel(cfg *config.Config, store storage.Storage, tracker *feedtracker.Tracker) model {
 	ti := textinput.New()
 	ti.Placeholder = "https://example.com/feed.xml"
 	ti.Width = 60
 	ti.CharLimit = 2048
+
+	eti := textinput.New()
+	eti.Placeholder = "Feed title"
+	eti.Width = 60
+	eti.CharLimit = 1024
+
+	eui := textinput.New()
+	eui.Placeholder = "Feed URL"
+	eui.Width = 60
+	eui.CharLimit = 2048
 
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -200,6 +220,8 @@ func initialModel(cfg *config.Config, store storage.Storage, tracker *feedtracke
 		tracker:             tracker,
 		collapsed:           make(map[string]bool),
 		textInput:           ti,
+		editTitleInput:      eti,
+		editURLInput:        eui,
 		spinner:             s,
 		viewport:            vp,
 		autoRefreshInterval: cfg.TUI.AutoRefresh,
@@ -236,6 +258,13 @@ func loadFeedsCmd(store storage.Storage, timeout time.Duration) tea.Cmd {
 		}
 		return feedsLoadedMsg{feeds: feeds}
 	}
+}
+
+func effectiveFeedID(m model) string {
+	if m.feed != nil {
+		return m.feed.ID
+	}
+	return m.filterFeedID
 }
 
 func loadEntriesCmd(store storage.Storage, feedID string, showRead bool, limit int, timeout time.Duration) tea.Cmd {

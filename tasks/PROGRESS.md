@@ -120,3 +120,15 @@
 | 74 | CLI: ft prune command | ✓ |
 | 75 | Auto-prune after ft fetch | ✓ |
 | 76 | Tests: storage DeleteEntriesOlderThan (basic, zero-age, all-deleted) | ✓ |
+
+## Phase 7: Feed & Entry Management
+
+| # | Step | Status |
+|---|---|---|
+| 77 | Storage: GetEntry method + SQLite impl + test | ✓ |
+| 78 | CLI: ft feed update command (title/URL editing) | ✓ |
+| 79 | CLI: ft open command (browser open entry) | ✓ |
+| 80 | TUI: feed edit screen (E key) | ✓ |
+| 81 | TUI: entry filter by feed in All Entries view (f key) | ✓ |
+| 82 | TUI: keyboard-driven feed switching ([ / ]) | ✓ |
+| 83 | Docs: completion scripts, help view, cli.md, plan/progress | ✓ |

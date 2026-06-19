@@ -494,6 +494,56 @@ func TestListEntriesZeroLimit(t *testing.T) {
 	}
 }
 
+func TestGetEntry(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+
+	entryID := uuid.New().String()
+	entry := &domain.Entry{
+		ID: entryID, FeedID: feedID, ExternalID: "ext-1",
+		Title: "Test Entry", URL: "https://example.com/entry",
+		Summary: "Summary text", Content: "Full content",
+		Author: "Author", PublishedAt: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC),
+		FetchedAt: time.Now(), Read: false,
+	}
+	if _, err := s.UpsertEntry(ctx, entry); err != nil {
+		t.Fatalf("UpsertEntry: %v", err)
+	}
+
+	got, err := s.GetEntry(ctx, entryID)
+	if err != nil {
+		t.Fatalf("GetEntry: %v", err)
+	}
+	if got.Title != entry.Title {
+		t.Errorf("Title = %q, want %q", got.Title, entry.Title)
+	}
+	if got.URL != entry.URL {
+		t.Errorf("URL = %q, want %q", got.URL, entry.URL)
+	}
+	if got.Summary != entry.Summary {
+		t.Errorf("Summary = %q, want %q", got.Summary, entry.Summary)
+	}
+	if got.Author != entry.Author {
+		t.Errorf("Author = %q, want %q", got.Author, entry.Author)
+	}
+	if got.Read {
+		t.Error("expected Read=false")
+	}
+}
+
+func TestGetEntry_Missing(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	_, err := s.GetEntry(ctx, "nonexistent-id")
+	if err == nil {
+		t.Fatal("expected error for missing entry")
+	}
+}
+
 func TestDeleteFeedCascadeDeletesEntries(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
