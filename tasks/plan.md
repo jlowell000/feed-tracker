@@ -13,15 +13,6 @@
 | Global "All Entries" view | `cmd/tui/model.go` (allEntriesItem kind, buildDisplayItems), `cmd/tui/view.go` (rendering + feed name in entries list), `cmd/tui/update.go` (enter handler) |
 | Import dry-run preview | `cmd/tui/model.go` (importPreviewMsg, importPreviewCmd), `cmd/tui/update.go` (importDryRunScreen, handleImportDryRunKey), `cmd/tui/view.go` (importDryRunView) |
 | Export filter screen | `cmd/tui/model.go` (exportFilteredCmd, exportFilter field), `cmd/tui/update.go` (exportPickScreen, handleExportPickKey), `cmd/tui/view.go` (exportPickView) |
-
-### Remaining gaps (for future phases)
-
-- Bulk operations (mark-all-read, delete-all-read)
-- Feed title editing / URL updating
-- Entry search/filter by keyword
-- Database maintenance (vacuum, stats)
-- Browser-open in CLI
-
 ---
 
 ## Phase 2: Testing & Hardening ✅
@@ -141,48 +132,71 @@ tui:
 ### Remaining gaps (for future phases)
 
 - FTS5 full-text search (LIKE covers basic case)
-- Bulk delete entries (`ft delete --read`)
 - Entry filter by feed while in All Entries view
 - Keyboard-driven feed switching
 
 ---
 
-## Phase 5: Hardening & Polish ✅ (partial)
+## Phase 5: Hardening & Polish ✅
 
-### Completed items
+> Completed — all items implemented.
 
 | Item | Approach |
 |---|---|
 | **Context timeouts (storage layer)** | `Fetch` now accepts `context.Context`; `FetchWithTimeout` removed. CLI root context wraps config timeout via `context.WithTimeout`. TUI all 22 command functions pass timeout from config. Bare `context.Background()` eliminated from TUI commands. |
 | **Database maintenance** | `Vacuum(ctx)` and `Optimize(ctx)` added to storage interface + SQLite. `ft vacuum` and `ft db optimize` CLI subcommands added. |
 
-### Remaining for Phase 5
+---
+
+## Phase 6: Automatic Entry Pruning
+
+Global automatic deletion of entries based on age, replacing manual bulk delete.
 
 | Item | Approach |
 |---|---|
-| **Virtualized feed list** | Refactor `buildDisplayItems` to only render visible rows. Worthwhile above ~200 feeds. |
-| **Browser-open in CLI** | Add `feed-tracker open <id>` to open feed URL in browser. |
-| **Feed title/URL editing** | Allow editing feed metadata from TUI and CLI. |
-| **Lazy content/summary** | Skip loading `content`/`summary` columns in list queries; load on detail view. Currently low ROI since JOIN removal already covers main query cost. |
+| **Config: `prune.max_age`** | Add to `config.example.yaml` (e.g. `30d`, `90d`, `0` to disable) |
+| **Storage: `DeleteEntriesOlderThan`** | New method on storage interface + SQLite impl (`DELETE FROM entries WHERE published_at < ?`) |
+| **CLI: `ft prune`** | New command to trigger manual prune |
+| **Auto-prune after fetch** | Run prune automatically after `ft fetch` based on config |
+| **Tests** | Storage prune query, CLI command |
+
+> Future: per-feed-type and per-feed pruning controls deferred to Phase 9.
 
 ---
 
-## Deferred Work (collected)
+## Phase 7: Feed & Entry Management
 
-Items deferred across all completed phases, ordered by estimated value:
+| Item | Approach |
+|---|---|
+| **Feed title/URL editing** | CLI: `ft feed update <name> --title ... --url ...`. TUI: edit screen on feed select. |
+| **Browser-open in CLI** | `ft open <entry-id>` — opens entry URL in system browser. |
+| **Entry filter by feed** | Filter entries by feed while in All Entries view (TUI). |
+| **Keyboard-driven feed switching** | Navigate between feeds via keyboard shortcuts in TUI. |
 
-| Priority | Item | Phase | Notes |
-|---|---|---|---|
-| High | Context deadlines + timeouts | P2 | Still `context.Background()` everywhere. Non-trivial — touches all CLI/TUI entry points. |
-| High | FTS5 full-text search | P4 | LIKE-based search implemented in Phase 4; upgrade to FTS5 for performance |
-| High | Bulk delete read entries | P4 | Deferred from Phase 4; needs confirmation UX |
-| Medium | Virtualized feed list | P3 | Major refactor of `buildDisplayItems`. Only pays off at 200+ feeds. |
-| Medium | Database maintenance commands | P1 | Vacuum, stats, integrity check. |
-| Low | Lazy content/summary loading | P3 | JOIN elimination already covers main query cost. |
-| Low | Feed title/URL editing | P1 | Nice-to-have, low complexity. |
-| Low | Browser-open in CLI | P1 | Trivial to add. |
-| Low | Domain package tests | P2 | Trivial getter structs; low value. |
+---
 
+## Phase 8: Performance & Polish
+
+| Item | Approach |
+|---|---|
+| **FTS5 full-text search** | Upgrade from LIKE-based search to SQLite FTS5 for performance. |
+| **Virtualized feed list** | Refactor `buildDisplayItems` to only render visible rows. Pays off at 200+ feeds. |
+| **Lazy content/summary** | Skip loading content/summary columns in list queries; load on detail view. |
+| **TUI auto-refresh countdown** | Show time remaining until next auto-refresh in status bar. |
+| **Domain package tests** | Low-value but completes test coverage for trivial getter structs. |
+
+---
+
+## Phase 9: Granular Pruning Controls
+
+Per-feed-type and per-feed overrides for entry age-based deletion.
+
+| Item | Approach |
+|---|---|
+| **Per-feed-type config** | Config overrides per feed type (`rss`, `atom`, `jsonfeed`, `activitypub`), e.g. `prune.overrides.type.activitypub.max_age: 7d` |
+| **Per-feed config** | Add `max_age` column to feeds table or use feed metadata. |
+| **CLI editing** | `ft feed update <name> --prune-age 14d` |
+| **TUI editing** | Per-feed prune age setting in TUI feed view. |
 ---
 
 ## Recommended Order
@@ -195,4 +209,8 @@ Items deferred across all completed phases, ordered by estimated value:
 6. ✅ ~~Cursor pagination~~ (Phase 3 complete)
 7. ✅ ~~Makefile + build tooling~~ (Phase 3b complete)
 8. ✅ ~~Search, filters & bulk mark-read~~ (Phase 4 complete)
-9. **Phase 5** — Hardening & polish
+9. ✅ ~~Phase 5~~ — Hardening & polish (completed)
+10. **Phase 6** — Automatic entry pruning (global)
+11. **Phase 7** — Feed & entry management
+12. **Phase 8** — Performance & polish
+13. **Phase 9** — Granular pruning controls (per-feed-type, per-feed)
