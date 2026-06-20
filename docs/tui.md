@@ -27,28 +27,37 @@ The top entry in the feed list is **All Entries** — select it to see entries f
 
 ## Keybindings
 
-| Key | Action |
-|---|---|
-| `↑/k` | Move up |
-| `↓/j` | Move down |
-| `Enter` | Select / Confirm |
-| `Esc` | Go back |
-| `a` | Add a new feed |
-| `g` | Create a folder |
-| `m` | Move feed to folder |
-| `d` | Delete folder or feed |
-| `R` | Rename folder |
-| `Enter/Space` | Toggle folder collapse |
-| `f` | Fetch all feeds |
-| `e` | Export feeds to OPML (filter by all/folders/ungrouped) |
-| `i` | Import feeds from OPML (with preview before importing) |
-| `r` | Refresh current view |
-| `u` | Toggle show read entries |
-| `s` | Search entries by keyword (in entry list) |
-| `a` | Mark all displayed entries as read (in entry list) |
-| `A` | Mark all entries in current feed as read (in entry list) |
-| `L` | Load more entries (paginated, in entry list) |
-| `M` | Mark entry unread (in entry detail) |
-| `o` | Open entry URL in browser |
-| `?` | Toggle help overlay |
-| `q/Ctrl+C` | Quit |
+| Key | Action | Context |
+|---|---|---|
+| `↑/k` | Move up | All lists |
+| `↓/j` | Move down | All lists |
+| `PgUp` | Page up | All lists |
+| `PgDn` | Page down | All lists |
+| `Home` | Go to first | All lists |
+| `End` | Go to last | All lists |
+| `Enter` | Select / Confirm | All |
+| `Esc` | Go back | All |
+| `?` | Toggle help overlay | All |
+| `q/Ctrl+C` | Quit | All |
+| `a` | Add a new feed | Feed list |
+| `g` | Create a folder | Feed list |
+| `d` | Delete folder or feed | Feed list |
+| `R` | Rename folder | Feed list |
+| `Enter/Space` | Toggle folder collapse | Feed list |
+| `E` | Edit feed title/URL | Feed list / Entries list |
+| `m` | Move feed to folder | Feed list |
+| `f` | Fetch all feeds | Feed list |
+| `e` | Export feeds to OPML | Feed list |
+| `i` | Import feeds from OPML | Feed list |
+| `r` | Refresh feed list | Feed list |
+| `u` | Toggle show read / unread | Entries list |
+| `s` | Search entries | Entries list |
+| `a` | Mark displayed entries read | Entries list |
+| `A` | Mark all in feed read | Entries list |
+| `L` | Load more entries | Entries list |
+| `f` | Filter by feed | Entries list (All Entries view) |
+| `[` / `]` | Switch to prev/next feed | Entries list |
+| `M` | Mark entry unread | Entry detail |
+| `o` | Open entry URL in browser | Entry detail |
+| `↑/↓` | Scroll line by line | Entry detail |
+| `PgUp/PgDn` | Scroll page by page | Entry detail |

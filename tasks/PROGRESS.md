@@ -132,3 +132,21 @@
 | 81 | TUI: entry filter by feed in All Entries view (f key) | ✓ |
 | 82 | TUI: keyboard-driven feed switching ([ / ]) | ✓ |
 | 83 | Docs: completion scripts, help view, cli.md, plan/progress | ✓ |
+
+## Phase 8: Performance & Polish
+
+| # | Step | Status |
+|---|---|---|
+| 84 | Perf: lazy content/summary — list queries skip summary+content columns | ✓ |
+| 85 | UX: on-screen key hints — expanded per-screen header hints | ✓ |
+| 86 | UX: auto-refresh countdown — shows remaining time in status bar | ✓ |
+| 87 | UX: context-aware help screen — filtered by current screen | ✓ |
+| 88 | Tests: domain package — entry, feed, folder struct tests | ✓ |
+| 89 | Docs: plan.md updated for Phase 8 | ✓ |
+| 90 | UX: width-adaptive hint rendering — hints on own line, wrap if too long | ✓ |
+| 91 | Refactor: centralized helpBinding system — all bindings defined once, no string duplication | ✓ |
+| 92 | UX: help screen width matches terminal width (capped at 60) | ✓ |
+| 93 | Fix: help opens on entry detail view | ✓ |
+| 94 | Fix: feed list help no longer shows prev/next binding | ✓ |
+| 95 | Cleanup: remove dead keys.go, unused markEntryUnreadCmd, dead Width(40) | ✓ |
+| 96 | Polish: secondary views (add, import, search, etc.) use binding system | ✓ |

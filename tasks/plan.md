@@ -186,22 +186,52 @@ tui:
 
 ---
 
-## Phase 8: Performance & Polish
+## Phase 8: Performance & Polish ✅
 
-| Item | Approach |
+> Completed — all items implemented.
+
+### What was done
+
+| Item | Files changed |
 |---|---|
-| **FTS5 full-text search** | Upgrade from LIKE-based search to SQLite FTS5 for performance. |
+| **Lazy content/summary loading** | `internal/storage/sqlite.go` — split `entryCols` into list/detail variants; list queries skip `summary, content` columns |
+| **On-screen key hints** | `cmd/tui/view.go` — expanded header hints on all three main screens to show all available keybindings |
+| **TUI auto-refresh countdown** | `cmd/tui/model.go` (countdown field + ticker), `cmd/tui/update.go` (decrement + reset), `cmd/tui/view.go` (status bar display) |
+| **Context-aware help screen** | `cmd/tui/view.go` — `helpView()` now filters keybindings by `m.prevScreen` (feed list, entries list, or entry detail) |
+| **Domain package tests** | `internal/domain/entry_test.go`, `feed_test.go`, `folder_test.go` — basic construction and field access tests |
+| **Edit feed from entries list** | Already implemented in Phase 7 (`cmd/tui/update.go:478`) — marked done |
+| **Centralized helpBinding refactor** | `cmd/tui/view.go` — all unique `{key, desc}` pairs defined once as package-level `var`s, referenced by pointer in all slices. Removed `label` field from `helpBinding`; single `desc` field used by both hints and help view. |
+| **Width-adaptive hint lines** | `cmd/tui/view.go` — hints moved to their own line, wrapped at terminal width via `helpStyle.Width()`. Removed `maxWidth` truncation from `renderHintLine`. |
+| **Dynamic help box width** | `cmd/tui/view.go` — help screen width computed from terminal width (capped at 60). Removed dead `Width(40)` from `styles.go`. |
+| **Help on entry detail** | `cmd/tui/update.go` — added `"?"` handler to `handleEntryDetailKey`. |
+| **Feed list help fixes** | `cmd/tui/view.go` — removed `bindingPrevNext`, `bindingSearch`, `bindingToggleRead`, `bindingLoadMore`, `bindingAllEntries` from `feedListBindings` (not applicable to feed list). |
+| **Dead code removal** | Deleted `cmd/tui/keys.go` (entire file unused). Removed unused `markEntryUnreadCmd` from `cmd/tui/model.go`. Removed unused `lipgloss` import from `cmd/tui/view.go`. |
+| **Secondary views use bindings** | `cmd/tui/view.go` — all 11 modal views (add feed, edit feed, folder create/rename/pick, import, export pick, feed pick, search) use `renderHintLine()` with `helpBinding` vars instead of hardcoded strings. |
+| **globalBindings fixed** | `cmd/tui/view.go` — added `Esc`/Back to help screen global section. |
+
+### Remaining (deferred)
+
+| Item | Notes |
+|---|---|
+| **FTS5 full-text search** | Upgrade from LIKE-based search to SQLite FTS5. Requires migration, trigger management, and config. |
 | **Virtualized feed list** | Refactor `buildDisplayItems` to only render visible rows. Pays off at 200+ feeds. |
-| **Lazy content/summary** | Skip loading content/summary columns in list queries; load on detail view. |
-| **TUI auto-refresh countdown** | Show time remaining until next auto-refresh in status bar. |
-| **Context-aware help screen** | Filter the help view (`?`) to show only keybindings relevant to the current screen instead of all at once. |
-| **On-screen key hints** | Expand the header bar on each screen to show all available keyboard commands (not just a subset). E.g. entries list shows `[f] Filter [u] ... [s] ... [a] ... [A] ... [L] ... [\[] [/] ... [E] Edit ... [r] ... [Esc] [q]`; feed list shows `[a] ... [e] ... [E] ... [i] ... [g] ... [r] ... [f] ... [?]`. |
-| **Edit feed from entries list** | Allow `E` key in entries list screen to edit the current feed's title/URL (reuses the edit feed screen). Currently only available in the feed list. |
-| **Domain package tests** | Low-value but completes test coverage for trivial getter structs. |
 
 ---
 
-## Phase 9: Granular Pruning Controls
+## Phase 9: view.go Refactor
+
+`cmd/tui/view.go` has grown to ~950 lines, mixing view rendering, binding definitions, hint helpers, and the help screen. Split into focused files.
+
+| Item | Approach |
+|---|---|
+| **Split bindings + helpers** | Move `helpBinding` struct, all `binding*` vars, `renderHintLine`, `renderHelpSection` into `cmd/tui/bindings.go` (~120 lines). |
+| **Split help screen** | Move `helpView()` into `cmd/tui/help.go` (~30 lines). |
+| **Split secondary views** | Move `editFeedView`, `addFeedView`, `folderCreateView`, `folderRenameView`, `folderPickView`, `importView`, `importDryRunView`, `exportPickView`, `feedPickView`, `searchView` into `cmd/tui/views.go` (~170 lines). |
+| **Rename leftovers** | Rename the remaining `view.go` to `views_core.go` or keep `view.go` with only the `View()` switch, `feedsListView`, `entriesListView`, `entryDetailView`, `entryDetailContent`, `statusBar`, and helpers (~350 lines). |
+
+---
+
+## Phase 10: Granular Pruning Controls
 
 Per-feed-type and per-feed overrides for entry age-based deletion.
 
@@ -226,5 +256,6 @@ Per-feed-type and per-feed overrides for entry age-based deletion.
 9. ✅ ~~Phase 5~~ — Hardening & polish (completed)
 10. ✅ ~~Phase 6~~ — Automatic entry pruning (completed)
 11. ✅ ~~Phase 7~~ — Feed & entry management (completed)
-12. **Phase 8** — Performance & polish
-13. **Phase 9** — Granular pruning controls (per-feed-type, per-feed)
+12. ✅ ~~Phase 8~~ — Performance & polish (completed)
+13. **Phase 9** — view.go refactor (split into bindings.go, help.go, views.go)
+14. **Phase 10** — Granular pruning controls (per-feed-type, per-feed)

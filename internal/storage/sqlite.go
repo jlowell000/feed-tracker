@@ -172,6 +172,9 @@ func (s *sqliteStorage) UpsertEntry(ctx context.Context, entry *domain.Entry) (b
 const entryCols = `id, feed_id, external_id, title, url, summary, content, author, published_at, updated_at, fetched_at, read`
 const entryColsPrefixed = `e.id, e.feed_id, e.external_id, e.title, e.url, e.summary, e.content, e.author, e.published_at, e.updated_at, e.fetched_at, e.read`
 
+const entryListCols = `id, feed_id, external_id, title, url, '' as summary, '' as content, author, published_at, updated_at, fetched_at, read`
+const entryListColsPrefixed = `e.id, e.feed_id, e.external_id, e.title, e.url, '' as summary, '' as content, e.author, e.published_at, e.updated_at, e.fetched_at, e.read`
+
 func (s *sqliteStorage) ListEntries(ctx context.Context, feedID string, limit, offset int) ([]*domain.Entry, error) {
 	if limit <= 0 {
 		limit = 50
@@ -182,12 +185,12 @@ func (s *sqliteStorage) ListEntries(ctx context.Context, feedID string, limit, o
 	var rows *sql.Rows
 	var err error
 	if feedID == "" {
-		q := `SELECT ` + entryColsPrefixed + `, COALESCE(f.title, '')
+		q := `SELECT ` + entryListColsPrefixed + `, COALESCE(f.title, '')
 			FROM entries e LEFT JOIN feeds f ON e.feed_id = f.id
 			ORDER BY e.published_at DESC LIMIT ? OFFSET ?`
 		rows, err = s.db.QueryContext(ctx, q, limit, offset)
 	} else {
-		q := `SELECT ` + entryCols + `, '' as feed_title
+		q := `SELECT ` + entryListCols + `, '' as feed_title
 			FROM entries
 			WHERE feed_id = ?
 			ORDER BY published_at DESC LIMIT ? OFFSET ?`
@@ -219,13 +222,13 @@ func (s *sqliteStorage) ListEntriesUnread(ctx context.Context, feedID string, li
 	var rows *sql.Rows
 	var err error
 	if feedID == "" {
-		q := `SELECT ` + entryColsPrefixed + `, COALESCE(f.title, '')
+		q := `SELECT ` + entryListColsPrefixed + `, COALESCE(f.title, '')
 			FROM entries e LEFT JOIN feeds f ON e.feed_id = f.id
 			WHERE e.read = 0
 			ORDER BY e.published_at DESC LIMIT ? OFFSET ?`
 		rows, err = s.db.QueryContext(ctx, q, limit, offset)
 	} else {
-		q := `SELECT ` + entryCols + `, '' as feed_title
+		q := `SELECT ` + entryListCols + `, '' as feed_title
 			FROM entries
 			WHERE feed_id = ? AND read = 0
 			ORDER BY published_at DESC LIMIT ? OFFSET ?`
@@ -311,7 +314,7 @@ func (s *sqliteStorage) SearchEntries(ctx context.Context, query string, limit, 
 		offset = 0
 	}
 	pattern := "%" + query + "%"
-	q := `SELECT ` + entryColsPrefixed + `, COALESCE(f.title, '')
+	q := `SELECT ` + entryListColsPrefixed + `, COALESCE(f.title, '')
 		FROM entries e LEFT JOIN feeds f ON e.feed_id = f.id
 		WHERE e.title LIKE ? OR e.summary LIKE ?
 		ORDER BY e.published_at DESC LIMIT ? OFFSET ?`

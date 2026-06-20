@@ -39,8 +39,7 @@ var (
 	helpBoxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#00BFFF")).
-			Padding(1).
-			Width(40)
+			Padding(1)
 
 	titleStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FFFFFF")).

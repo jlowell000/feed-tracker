@@ -54,7 +54,10 @@ func (m model) feedsListView() string {
 	var b strings.Builder
 
 	b.WriteString(headerStyle.Render(" Feed Tracker"))
-	b.WriteString(helpStyle.Render("  [?] Help  [e] Export  [i] Import  [q] Quit"))
+	b.WriteString("\n")
+	hints := append([]*helpBinding{}, feedListHints...)
+	hints = append(hints, exitHints...)
+	b.WriteString(helpStyle.Width(m.width - 4).Render(renderHintLine(hints, nil)))
 	b.WriteString("\n\n")
 
 	if len(m.displayItems) == 0 {
@@ -192,7 +195,16 @@ func (m model) entriesListView() string {
 		searchLabel = fmt.Sprintf(" — search: %q", m.searchQuery)
 	}
 	b.WriteString(headerStyle.Render(fmt.Sprintf(" < %s%s", title, searchLabel)))
-	b.WriteString(helpStyle.Render(fmt.Sprintf("  [u] %s  [s] Search  [a] Mark Read  [Esc] Back  [q] Quit", filter)))
+	b.WriteString("\n")
+	var allHints []*helpBinding
+	allHints = append(allHints, entriesListHints...)
+	feedSwitching := m.feed != nil || m.filterFeedID != ""
+	if feedSwitching {
+		allHints = append(allHints, &bindingPrevNext)
+	}
+	allHints = append(allHints, entriesListSuffixHints...)
+	allHints = append(allHints, exitHints...)
+	b.WriteString(helpStyle.Width(m.width - 4).Render(renderHintLine(allHints, map[string]string{"u": filter})))
 	b.WriteString("\n\n")
 
 	if len(m.entries) == 0 {
@@ -280,7 +292,7 @@ func (m model) entriesListView() string {
 		}
 
 		if showLoadMore {
-			b.WriteString(helpStyle.Render(fmt.Sprintf("  [L] Load more (%d loaded)", len(m.entries))))
+			b.WriteString(helpStyle.Render("  " + renderHintLine([]*helpBinding{&bindingLoadMore}, map[string]string{"L": fmt.Sprintf("Load more (%d loaded)", len(m.entries))})))
 			b.WriteString("\n")
 		}
 	}
@@ -298,7 +310,10 @@ func (m model) entryDetailView() string {
 		title = m.entry.Title
 	}
 	b.WriteString(headerStyle.Render(fmt.Sprintf(" < %s", title)))
-	b.WriteString(helpStyle.Render("  [Esc] Back  [M] Unread  [o] Open  [q] Quit"))
+	b.WriteString("\n")
+	hints := append([]*helpBinding{}, detailActionHints...)
+	hints = append(hints, exitHints...)
+	b.WriteString(helpStyle.Width(m.width - 4).Render(renderHintLine(hints, nil)))
 	b.WriteString("\n\n")
 
 	content := m.viewport.View()
@@ -349,7 +364,7 @@ func (m model) editFeedView() string {
 	var b strings.Builder
 
 	b.WriteString(headerStyle.Render(" < Edit Feed"))
-	b.WriteString(helpStyle.Render("  [Enter] Save  [Esc] Cancel  [q] Quit"))
+	b.WriteString(helpStyle.Render("  " + renderHintLine([]*helpBinding{&bindingEnterSave, &bindingEscCancel, &bindingHintQuit}, nil)))
 	b.WriteString("\n\n")
 
 	b.WriteString(detailLabelStyle.Render("  Title:"))
@@ -373,7 +388,7 @@ func (m model) addFeedView() string {
 	var b strings.Builder
 
 	b.WriteString(headerStyle.Render(" < Add Feed"))
-	b.WriteString(helpStyle.Render("  [Enter] Add  [Esc] Back  [q] Quit"))
+	b.WriteString(helpStyle.Render("  " + renderHintLine([]*helpBinding{&bindingEnterAdd, &bindingHintBack, &bindingHintQuit}, nil)))
 	b.WriteString("\n\n\n")
 
 	b.WriteString(detailLabelStyle.Render("  Enter feed URL:"))
@@ -387,49 +402,166 @@ func (m model) addFeedView() string {
 	return b.String()
 }
 
+type helpBinding struct {
+	key  string
+	desc string
+}
+
+// Unique bindings — each {key, desc} pair defined once.
+var (
+	bindingUp             = helpBinding{"↑/k", "Move up"}
+	bindingDown           = helpBinding{"↓/j", "Move down"}
+	bindingPgUp           = helpBinding{"PgUp", "Page up"}
+	bindingPgDn           = helpBinding{"PgDn", "Page down"}
+	bindingHome           = helpBinding{"Home", "Go to first"}
+	bindingEnd            = helpBinding{"End", "Go to last"}
+	bindingEnterSel       = helpBinding{"Enter", "Select / Confirm"}
+	bindingBack           = helpBinding{"Esc", "Back"}
+	bindingHelp           = helpBinding{"?", "Help"}
+	bindingQuit           = helpBinding{"q/Ctrl+C", "Quit"}
+	bindingAllEntries     = helpBinding{"All Entries", "Shows entries from all feeds"}
+	bindingAdd            = helpBinding{"a", "Add"}
+	bindingExport         = helpBinding{"e", "Export"}
+	bindingImport         = helpBinding{"i", "Import"}
+	bindingFolder         = helpBinding{"g", "Folder"}
+	bindingRename         = helpBinding{"R", "Rename"}
+	bindingMove           = helpBinding{"m", "Move"}
+	bindingDelete         = helpBinding{"d", "Delete"}
+	bindingFeedFetch      = helpBinding{"f", "Fetch"}
+	bindingToggleCollapse = helpBinding{"Enter/Space", "Toggle folder collapse"}
+	bindingEnterDetail    = helpBinding{"Enter", "Open entry detail"}
+	bindingFilter         = helpBinding{"f", "Filter"}
+	bindingMarkRead       = helpBinding{"a", "Mark Read"}
+	bindingAllRead        = helpBinding{"A", "All Read"}
+	bindingEdit           = helpBinding{"E", "Edit"}
+	bindingRefresh        = helpBinding{"r", "Refresh"}
+	bindingSearch         = helpBinding{"s", "Search"}
+	bindingLoadMore       = helpBinding{"L", "Load more"}
+	bindingToggleRead     = helpBinding{"u", "Toggle read"}
+	bindingUnread         = helpBinding{"M", "Unread"}
+	bindingOpen           = helpBinding{"o", "Open"}
+	bindingPrevNext       = helpBinding{"[/]", "Previous/next feed"}
+	bindingScroll         = helpBinding{"↑/↓", "Scroll line by line"}
+	bindingPage           = helpBinding{"PgUp/PgDn", "Scroll page by page"}
+	bindingHintHelp       = helpBinding{"?", "Help"}
+	bindingHintBack       = helpBinding{"Esc", "Back"}
+	bindingHintQuit       = helpBinding{"q", "Quit"}
+	bindingEnterSave      = helpBinding{"Enter", "Save"}
+	bindingEnterAdd       = helpBinding{"Enter", "Add"}
+	bindingEnterCreate    = helpBinding{"Enter", "Create"}
+	bindingEnterRename    = helpBinding{"Enter", "Rename"}
+	bindingEnterImport    = helpBinding{"Enter", "Import"}
+	bindingEnterConfirm   = helpBinding{"Enter", "Confirm"}
+	bindingEnterSearch    = helpBinding{"Enter", "Search"}
+	bindingNumberSel      = helpBinding{"0-9", "Select"}
+	bindingEscCancel      = helpBinding{"Esc", "Cancel"}
+	bindingExportAll      = helpBinding{"a", "All"}
+	bindingExportFolders  = helpBinding{"f", "Folders only"}
+	bindingExportUngrouped= helpBinding{"u", "Ungrouped only"}
+)
+
+// Help view sections (referenced by pointer — no duplication).
+var (
+	navBindings = []*helpBinding{
+		&bindingUp, &bindingDown, &bindingPgUp, &bindingPgDn,
+		&bindingHome, &bindingEnd, &bindingEnterSel, &bindingBack,
+	}
+	globalBindings = []*helpBinding{&bindingHelp, &bindingBack, &bindingQuit}
+	feedListBindings = []*helpBinding{
+		&bindingAdd, &bindingExport, &bindingImport,
+		&bindingFolder, &bindingRename, &bindingMove, &bindingDelete,
+		&bindingEdit, &bindingFeedFetch, &bindingRefresh,
+		&bindingToggleCollapse,
+	}
+	entriesListBindings = []*helpBinding{
+		&bindingEnterDetail, &bindingToggleRead, &bindingFilter, &bindingSearch,
+		&bindingMarkRead, &bindingAllRead, &bindingLoadMore, &bindingEdit,
+		&bindingPrevNext, &bindingUnread, &bindingOpen, &bindingRefresh,
+	}
+	detailBindings = []*helpBinding{
+		&bindingScroll, &bindingPage, &bindingUnread, &bindingOpen,
+		&bindingRefresh,
+	}
+)
+
+// On-screen hint slices (same bindings, no string duplication).
+var (
+	feedListHints = []*helpBinding{
+		&bindingAdd, &bindingFolder, &bindingFeedFetch, &bindingRefresh,
+		&bindingExport, &bindingImport,
+		&bindingEdit, &bindingDelete, &bindingMove, &bindingRename,
+	}
+	entriesListHints = []*helpBinding{
+		&bindingToggleRead, &bindingFilter, &bindingSearch,
+		&bindingMarkRead, &bindingAllRead, &bindingLoadMore, &bindingEdit,
+	}
+	entriesListSuffixHints = []*helpBinding{
+		&bindingUnread, &bindingOpen, &bindingRefresh,
+	}
+	detailActionHints = []*helpBinding{
+		&bindingUnread, &bindingOpen, &bindingRefresh,
+		&bindingScroll, &bindingPage,
+	}
+	exitHints = []*helpBinding{
+		&bindingHintHelp, &bindingHintBack, &bindingHintQuit,
+	}
+)
+
+func renderHintLine(bindings []*helpBinding, overrides map[string]string) string {
+	var parts []string
+	for _, b := range bindings {
+		desc := b.desc
+		if override, ok := overrides[b.key]; ok {
+			desc = override
+		}
+		if desc == "" {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("[%s] %s", b.key, desc))
+	}
+	return strings.Join(parts, "  ")
+}
+
+func renderHelpSection(title string, bindings []*helpBinding) []string {
+	lines := []string{"  " + title}
+	for _, b := range bindings {
+		lines = append(lines, fmt.Sprintf("    %-12s %s", b.key, b.desc))
+	}
+	return lines
+}
+
 func (m model) helpView() string {
+	nav := renderHelpSection("Navigation", navBindings)
+	global := renderHelpSection("Global", globalBindings)
+
+	var section []string
+	switch m.prevScreen {
+	case feedsListScreen:
+		section = renderHelpSection("Feed List", feedListBindings)
+	case entriesListScreen:
+		section = renderHelpSection("Entries List", entriesListBindings)
+	case entryDetailScreen:
+		section = renderHelpSection("Entry Detail", detailBindings)
+	default:
+		section = renderHelpSection("Actions", feedListBindings)
+	}
+
 	help := strings.Join([]string{
-		"  Navigation",
-		"    ↑/k         Move up",
-		"    ↓/j         Move down",
-		"    PgUp        Page up",
-		"    PgDn        Page down",
-		"    Home        Go to first",
-		"    End         Go to last",
-		"    Enter       Select / Confirm",
-		"    Esc         Back",
+		strings.Join(nav, "\n"),
 		"",
-		"  Actions",
-		"    a           Add a new feed",
-		"    e           Export feeds to OPML (filter options)",
-		"    E           Edit feed title or URL",
-		"    i           Import feeds from OPML (preview first)",
-		"    g           Create a folder",
-		"    m           Move feed to folder",
-		"    d           Delete folder or feed",
-		"    R           Rename folder",
-		"    Enter/Space Toggle folder collapse",
-		"    f           Fetch all feeds (feed list) / Filter by feed (entries list)",
-		"    r           Refresh current view",
-		"    u           Toggle show read entries",
-		"    L           Load more entries (paginated)",
-		"    s           Search entries by keyword",
-		"    a           Mark all displayed entries as read",
-		"    A           Mark all entries in feed as read",
-		"    o           Open entry URL in browser",
-		"    M           Mark entry unread",
-		"    [ / ]       Previous/next feed",
-		"    E           Edit feed title or URL (feed list)",
+		strings.Join(section, "\n"),
 		"",
-		"  Feed List",
-		"    All Entries Shows entries from all feeds",
-		"",
-		"  Global",
-		"    ?           Toggle this help",
-		"    q/Ctrl+C    Quit",
+		strings.Join(global, "\n"),
 	}, "\n") + "\n"
 
-	box := helpBoxStyle.Render(help)
+	boxWidth := m.width - 4
+	if boxWidth > 60 {
+		boxWidth = 60
+	}
+	if boxWidth < 20 {
+		boxWidth = 20
+	}
+	box := helpBoxStyle.Width(boxWidth).Render(help)
 
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(" < Help"))
@@ -453,6 +585,12 @@ func (m model) statusBar() string {
 	}
 	if m.fetching || m.loading {
 		status = m.spinner.View() + " " + status
+	}
+
+	if m.autoRefreshInterval > 0 && !m.fetching && status != "Ready" {
+		status += fmt.Sprintf(" | %s", formatDurationRemaining(m.autoRefreshRemaining))
+	} else if m.autoRefreshInterval > 0 && status == "Ready" {
+		status = fmt.Sprintf("Ready — auto-refresh in %s", formatDurationRemaining(m.autoRefreshRemaining))
 	}
 
 	left := statusStyle.Render(status)
@@ -522,6 +660,24 @@ func formatDuration(d time.Duration) string {
 	}
 }
 
+func formatDurationRemaining(d time.Duration) string {
+	if d <= 0 {
+		return "now"
+	}
+	d = d.Round(time.Second)
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	}
+	if d < time.Hour {
+		m := int(d.Minutes())
+		s := int(d.Seconds()) % 60
+		return fmt.Sprintf("%dm %ds", m, s)
+	}
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	return fmt.Sprintf("%dh %dm", h, m)
+}
+
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
@@ -584,7 +740,7 @@ func countUnread(entries []*domain.Entry) int {
 func (m model) folderCreateView() string {
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(" < Create Folder"))
-	b.WriteString(helpStyle.Render("  [Enter] Create  [Esc] Back  [q] Quit"))
+	b.WriteString(helpStyle.Render("  " + renderHintLine([]*helpBinding{&bindingEnterCreate, &bindingHintBack, &bindingHintQuit}, nil)))
 	b.WriteString("\n\n\n")
 	b.WriteString(detailLabelStyle.Render("  Enter folder name:"))
 	b.WriteString("\n\n")
@@ -599,7 +755,7 @@ func (m model) folderCreateView() string {
 func (m model) folderRenameView() string {
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(" < Rename Folder"))
-	b.WriteString(helpStyle.Render("  [Enter] Rename  [Esc] Back  [q] Quit"))
+	b.WriteString(helpStyle.Render("  " + renderHintLine([]*helpBinding{&bindingEnterRename, &bindingHintBack, &bindingHintQuit}, nil)))
 	b.WriteString("\n\n\n")
 	b.WriteString(detailLabelStyle.Render("  New folder name:"))
 	b.WriteString("\n\n")
@@ -614,7 +770,7 @@ func (m model) folderRenameView() string {
 func (m model) folderPickView() string {
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(" < Move Feed to Folder"))
-	b.WriteString(helpStyle.Render("  [0-9] Select  [Esc] Cancel"))
+	b.WriteString(helpStyle.Render("  " + renderHintLine([]*helpBinding{&bindingNumberSel, &bindingEscCancel}, nil)))
 	b.WriteString("\n\n")
 
 	b.WriteString(detailLabelStyle.Render("  Select a folder (or 0 for no folder):"))
@@ -635,7 +791,7 @@ func (m model) folderPickView() string {
 func (m model) importView() string {
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(" < Import OPML"))
-	b.WriteString(helpStyle.Render("  [Enter] Import  [Esc] Back  [q] Quit"))
+	b.WriteString(helpStyle.Render("  " + renderHintLine([]*helpBinding{&bindingEnterImport, &bindingHintBack, &bindingHintQuit}, nil)))
 	b.WriteString("\n\n\n")
 	b.WriteString(detailLabelStyle.Render("  Enter path to OPML file:"))
 	b.WriteString("\n\n")
@@ -658,7 +814,7 @@ func (m model) importDryRunView() string {
 		return b.String()
 	}
 	b.WriteString(headerStyle.Render(" < Import Preview"))
-	b.WriteString(helpStyle.Render("  [Enter] Confirm  [Esc] Cancel  [q] Quit"))
+	b.WriteString(helpStyle.Render("  " + renderHintLine([]*helpBinding{&bindingEnterConfirm, &bindingEscCancel, &bindingHintQuit}, nil)))
 	b.WriteString("\n\n")
 
 	if len(m.importSpecs) == 0 {
@@ -721,7 +877,7 @@ func (m model) importDryRunView() string {
 func (m model) exportPickView() string {
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(" < Export Feeds"))
-	b.WriteString(helpStyle.Render("  [a] All  [f] Folders only  [u] Ungrouped only  [Esc] Cancel"))
+	b.WriteString(helpStyle.Render("  " + renderHintLine([]*helpBinding{&bindingExportAll, &bindingExportFolders, &bindingExportUngrouped, &bindingEscCancel}, nil)))
 	b.WriteString("\n\n")
 
 	b.WriteString(detailLabelStyle.Render("  Choose which feeds to export:"))
@@ -741,7 +897,7 @@ func (m model) exportPickView() string {
 func (m model) feedPickView() string {
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(" < Filter by Feed"))
-	b.WriteString(helpStyle.Render("  [Enter] Confirm  [Esc] Cancel  [q] Quit"))
+	b.WriteString(helpStyle.Render("  " + renderHintLine([]*helpBinding{&bindingEnterConfirm, &bindingEscCancel, &bindingHintQuit}, nil)))
 	b.WriteString("\n\n")
 
 	b.WriteString(detailLabelStyle.Render("  Enter feed number (0 for none):"))
@@ -768,7 +924,7 @@ func (m model) feedPickView() string {
 func (m model) searchView() string {
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(" < Search Entries"))
-	b.WriteString(helpStyle.Render("  [Enter] Search  [Esc] Back  [q] Quit"))
+	b.WriteString(helpStyle.Render("  " + renderHintLine([]*helpBinding{&bindingEnterSearch, &bindingHintBack, &bindingHintQuit}, nil)))
 	b.WriteString("\n\n\n")
 	b.WriteString(detailLabelStyle.Render("  Enter search query:"))
 	b.WriteString("\n\n")

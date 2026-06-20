@@ -95,6 +95,7 @@ type model struct {
 	showRead  bool
 
 	autoRefreshInterval time.Duration
+autoRefreshRemaining time.Duration
 
 	textInput textinput.Model
 	spinner   spinner.Model
@@ -187,6 +188,8 @@ type feedUpdatedMsg struct {
 	err error
 }
 
+type autoRefreshCountdownMsg struct{}
+
 func initialModel(cfg *config.Config, store storage.Storage, tracker *feedtracker.Tracker) model {
 	ti := textinput.New()
 	ti.Placeholder = "https://example.com/feed.xml"
@@ -224,8 +227,9 @@ func initialModel(cfg *config.Config, store storage.Storage, tracker *feedtracke
 		editURLInput:        eui,
 		spinner:             s,
 		viewport:            vp,
-		autoRefreshInterval: cfg.TUI.AutoRefresh,
-		entryPageSize:       pageSize,
+		autoRefreshInterval:  cfg.TUI.AutoRefresh,
+		autoRefreshRemaining: cfg.TUI.AutoRefresh,
+		entryPageSize:        pageSize,
 	}
 }
 
@@ -243,7 +247,7 @@ func (m model) Init() tea.Cmd {
 		m.spinner.Tick,
 	}
 	if m.autoRefreshInterval > 0 {
-		cmds = append(cmds, autoRefreshTick(m.autoRefreshInterval))
+		cmds = append(cmds, autoRefreshTick(m.autoRefreshInterval), countdownTick())
 	}
 	return tea.Batch(cmds...)
 }
@@ -390,17 +394,6 @@ func markEntryReadCmd(store storage.Storage, entryID string, timeout time.Durati
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		if err := store.MarkEntryRead(ctx, entryID); err != nil {
-			return errMsg{err}
-		}
-		return nil
-	}
-}
-
-func markEntryUnreadCmd(store storage.Storage, entryID string, timeout time.Duration) tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		defer cancel()
-		if err := store.MarkEntryUnread(ctx, entryID); err != nil {
 			return errMsg{err}
 		}
 		return nil
@@ -594,6 +587,12 @@ func fetchAllFeedsCmd(tracker *feedtracker.Tracker, store storage.Storage, timeo
 func autoRefreshTick(interval time.Duration) tea.Cmd {
 	return tea.Tick(interval, func(t time.Time) tea.Msg {
 		return fetchCompleteMsg{}
+	})
+}
+
+func countdownTick() tea.Cmd {
+	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
+		return autoRefreshCountdownMsg{}
 	})
 }
 

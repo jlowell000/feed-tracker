@@ -205,9 +205,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		cmds := []tea.Cmd{loadFeedsCmd(m.store, m.cfg.HTTP.Timeout)}
 		if m.autoRefreshInterval > 0 {
-			cmds = append(cmds, autoRefreshTick(m.autoRefreshInterval))
+			m.autoRefreshRemaining = m.autoRefreshInterval
+			cmds = append(cmds, autoRefreshTick(m.autoRefreshInterval), countdownTick())
 		}
 		return m, tea.Batch(cmds...)
+
+	case autoRefreshCountdownMsg:
+		if m.autoRefreshInterval > 0 {
+			m.autoRefreshRemaining -= time.Second
+			if m.autoRefreshRemaining < 0 {
+				m.autoRefreshRemaining = 0
+			}
+			return m, countdownTick()
+		}
+		return m, nil
 
 	case errMsg:
 		m.loading = false
@@ -584,6 +595,10 @@ func (m model) handleEntryDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, markUnreadAndReloadCmd(m.store, effectiveFeedID(m), m.showRead, entryID, m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout)
 		}
+	case "?":
+		m.prevScreen = m.screen
+		m.screen = helpScreen
+		return m, nil
 	}
 	return m, vpCmd
 }
