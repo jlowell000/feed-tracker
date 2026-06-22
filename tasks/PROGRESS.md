@@ -150,3 +150,4 @@
 | 94 | Fix: feed list help no longer shows prev/next binding | ✓ |
 | 95 | Cleanup: remove dead keys.go, unused markEntryUnreadCmd, dead Width(40) | ✓ |
 | 96 | Polish: secondary views (add, import, search, etc.) use binding system | ✓ |
+| 97 | Refactor: split view.go into bindings.go, help.go, views.go | ✓ |

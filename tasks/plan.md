@@ -218,16 +218,18 @@ tui:
 
 ---
 
-## Phase 9: view.go Refactor
+## Phase 9: view.go Refactor ✅
 
-`cmd/tui/view.go` has grown to ~950 lines, mixing view rendering, binding definitions, hint helpers, and the help screen. Split into focused files.
+> Completed — see below for implementation summary.
 
-| Item | Approach |
+### What was done
+
+| Item | Files changed |
 |---|---|
-| **Split bindings + helpers** | Move `helpBinding` struct, all `binding*` vars, `renderHintLine`, `renderHelpSection` into `cmd/tui/bindings.go` (~120 lines). |
-| **Split help screen** | Move `helpView()` into `cmd/tui/help.go` (~30 lines). |
-| **Split secondary views** | Move `editFeedView`, `addFeedView`, `folderCreateView`, `folderRenameView`, `folderPickView`, `importView`, `importDryRunView`, `exportPickView`, `feedPickView`, `searchView` into `cmd/tui/views.go` (~170 lines). |
-| **Rename leftovers** | Rename the remaining `view.go` to `views_core.go` or keep `view.go` with only the `View()` switch, `feedsListView`, `entriesListView`, `entryDetailView`, `entryDetailContent`, `statusBar`, and helpers (~350 lines). |
+| **Create `bindings.go`** | `cmd/tui/bindings.go` — helpBinding struct, all 46 binding vars, help sections, hint slices, renderHintLine, renderHelpSection (~130 lines) |
+| **Create `help.go`** | `cmd/tui/help.go` — helpView() method (~40 lines) |
+| **Create `views.go`** | `cmd/tui/views.go` — all 10 secondary modal views (editFeed, addFeed, folder CRUD, import, export, feedPick, search) (~210 lines) |
+| **Trim `view.go`** | `cmd/tui/view.go` — 954 → 541 lines. Keeps View(), feedsListView, entriesListView, entryDetailView, entryDetailContent, statusBar, and utility helpers. Removed `sort` and `internal/opml` imports. |
 
 ---
 
