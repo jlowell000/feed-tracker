@@ -252,6 +252,98 @@ tui:
 | **Docs** | `docs/cli.md`, `docs/config.md`, `tasks/plan.md`, `tasks/PROGRESS.md` |
 ---
 
+## Phase 11: Star/Bookmark Entries
+
+Add a `Starred` field so users can save important entries for later, accessible from both CLI and TUI.
+
+| Item | Files |
+|---|---|
+| **Domain**: `Starred bool` on `Entry` | `internal/domain/entry.go` |
+| **Storage**: migration, `StarEntry`/`UnstarEntry`/`ListStarredEntries`, update `scanEntry` | `internal/storage/storage.go`, `sqlite.go`, `sqlite_test.go` |
+| **CLI**: `ft star <id>`, `ft unstar <id>`, `ft list --starred` | `cmd/cli/star.go`, `unstar.go`, `list.go`, `main.go` |
+| **TUI entry detail**: `s` key toggles star/unstar | `cmd/tui/update.go`, `view.go` |
+| **TUI entry list**: star indicator, starred style, `S` key for starred-only filter | `cmd/tui/view.go`, `update.go`, `model.go`, `styles.go` |
+| **Help + bindings**: update for new keys | `cmd/tui/bindings.go`, `help.go` |
+
+---
+
+## Phase 12: Manual Entry Deletion
+
+Allow deleting individual entries from the TUI and CLI — complements star (save what matters, delete noise).
+
+| Item | Files |
+|---|---|
+| **Storage**: `DeleteEntry(ctx, id)` method + test | `internal/storage/storage.go`, `sqlite.go`, `sqlite_test.go` |
+| **CLI**: `ft delete-entry <id>` | `cmd/cli/delete-entry.go`, `main.go` |
+| **TUI entry list**: `d` key deletes entry (with confirmation) | `cmd/tui/update.go` |
+| **TUI entry detail**: `d` key deletes entry, returns to list | `cmd/tui/update.go` |
+| **Help + bindings**: update | `cmd/tui/bindings.go` |
+
+---
+
+## Phase 13: TUI Maintenance Operations
+
+Add keybindings so users never need to drop to CLI for database maintenance.
+
+| Item | Files |
+|---|---|
+| **TUI**: `P` key prunes old entries (shows count deleted in status bar) | `cmd/tui/update.go`, `model.go` |
+| **TUI**: `V` key vacuums database | `cmd/tui/update.go`, `model.go` |
+| **TUI**: `O` key optimizes database | `cmd/tui/update.go`, `model.go` |
+| **Help + bindings**: update | `cmd/tui/bindings.go` |
+
+---
+
+## Phase 14: Desktop Notifications
+
+Send OS-level notifications when auto-refresh (or manual fetch) finds new entries.
+
+| Item | Files |
+|---|---|
+| **Dependency**: Add `beeep` for OS notifications | `go.mod` |
+| **TUI**: After fetch completes, if new entries > 0, fire notification | `cmd/tui/update.go` |
+| **Config**: `tui.notifications` toggle | `internal/config/config.go` |
+
+---
+
+## Phase 15: Themes / Color Customization
+
+Move hardcoded color values from `styles.go` into the config file, letting users customize the look.
+
+| Item | Files |
+|---|---|
+| **Config**: Add `tui.theme` section with color overrides | `internal/config/config.go`, `config.example.yaml` |
+| **TUI**: Apply config theme in `styles.go`, falling back to defaults | `cmd/tui/styles.go` |
+
+---
+
+## Phase 16: Per-Feed Refresh Schedule
+
+Allow overriding the global `auto_refresh` interval per feed.
+
+| Item | Files |
+|---|---|
+| **Domain**: `RefreshInterval` field on Feed (0 = use global) | `internal/domain/feed.go` |
+| **Storage**: migration + column + UpdateFeed field | `internal/storage/migrations.go`, `sqlite.go` |
+| **TUI**: Feed edit screen adds refresh interval field | `cmd/tui/views.go`, `model.go`, `update.go` |
+| **TUI**: Timer uses per-feed interval when set | `cmd/tui/model.go` |
+| **CLI**: `ft feed update --refresh-interval` | `cmd/cli/feed.go` |
+
+---
+
+## Phase 17: FTS5 Full-Text Search
+
+Upgrade from LIKE-based search to SQLite FTS5 for better performance and relevance.
+
+| Item | Files |
+|---|---|
+| **Storage**: FTS5 virtual table migration + triggers | `internal/storage/migrations.go` |
+| **Storage**: Replace SearchEntries LIKE with FTS5 MATCH | `internal/storage/sqlite.go` |
+| **Storage**: Backfill existing entries into FTS index | `internal/storage/migrations.go` |
+| **Tests**: Update search tests for FTS5 | `internal/storage/sqlite_test.go` |
+
+---
+
 ## Recommended Order
 
 1. ✅ ~~Auto-refresh in TUI + feature gaps~~ (Phase 1 complete)
@@ -266,5 +358,12 @@ tui:
 10. ✅ ~~Phase 6~~ — Automatic entry pruning (completed)
 11. ✅ ~~Phase 7~~ — Feed & entry management (completed)
 12. ✅ ~~Phase 8~~ — Performance & polish (completed)
-13. **Phase 9** — view.go refactor (split into bindings.go, help.go, views.go)
-14. **Phase 10** — Granular pruning controls (per-feed-type, per-feed)
+13. ✅ ~~Phase 9 — view.go refactor (split into bindings.go, help.go, views.go)~~
+14. ✅ ~~Phase 10 — Granular pruning controls (per-feed-type, per-feed)~~
+15. **Phase 11** — Star/Bookmark entries
+16. **Phase 12** — Manual entry deletion
+17. **Phase 13** — TUI maintenance operations (prune/vacuum/optimize)
+18. **Phase 14** — Desktop notifications
+19. **Phase 15** — Themes / color customization
+20. **Phase 16** — Per-feed refresh schedule
+21. **Phase 17** — FTS5 full-text search

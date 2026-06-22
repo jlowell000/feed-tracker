@@ -169,3 +169,66 @@
 | 103 | TUI: MaxAge field in feed edit screen | ✓ |
 | 104 | Tests: storage per-feed prune + domain MaxAge field | ✓ |
 | 105 | Docs: cli.md, config.md, plan.md, PROGRESS.md | ✓ |
+
+## Phase 11: Star/Bookmark Entries
+
+| # | Step | Status |
+|---|---|---|
+| 106 | Domain: Starred bool on Entry | |
+| 107 | Storage: migration + StarEntry/UnstarEntry/ListStarredEntries | |
+| 108 | Storage: tests | |
+| 109 | CLI: ft star / ft unstar commands | |
+| 110 | CLI: ft list --starred flag | |
+| 111 | TUI: entry detail s key toggle star | |
+| 112 | TUI: star indicator + starred style in entry list | |
+| 113 | TUI: S key starred-only filter | |
+| 114 | Help + bindings update | |
+
+## Phase 12: Manual Entry Deletion
+
+| # | Step | Status |
+|---|---|---|
+| 115 | Storage: DeleteEntry method + test | |
+| 116 | CLI: ft delete-entry command | |
+| 117 | TUI: d key deletes from entries list + detail | |
+
+## Phase 13: TUI Maintenance Operations
+
+| # | Step | Status |
+|---|---|---|
+| 118 | TUI: P key prune with status feedback | |
+| 119 | TUI: V key vacuum | |
+| 120 | TUI: O key optimize | |
+
+## Phase 14: Desktop Notifications
+
+| # | Step | Status |
+|---|---|---|
+| 121 | Add beeep dependency | |
+| 122 | Config: tui.notifications toggle | |
+| 123 | TUI: fire notification on new entries after fetch | |
+
+## Phase 15: Themes / Color Customization
+
+| # | Step | Status |
+|---|---|---|
+| 124 | Config: tui.theme section with color overrides | |
+| 125 | styles.go: apply config theme with hardcoded fallback | |
+
+## Phase 16: Per-Feed Refresh Schedule
+
+| # | Step | Status |
+|---|---|---|
+| 126 | Domain: RefreshInterval field on Feed | |
+| 127 | Storage: migration + column | |
+| 128 | TUI: edit screen field + per-feed timer | |
+| 129 | CLI: ft feed update --refresh-interval | |
+
+## Phase 17: FTS5 Full-Text Search
+
+| # | Step | Status |
+|---|---|---|
+| 130 | Storage: FTS5 virtual table migration | |
+| 131 | Storage: triggers to keep FTS index in sync | |
+| 132 | Storage: backfill existing entries | |
+| 133 | Storage: replace SearchEntries with FTS5 MATCH | |
