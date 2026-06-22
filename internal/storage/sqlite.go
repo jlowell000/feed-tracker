@@ -48,6 +48,7 @@ func (s *sqliteStorage) Migrate(ctx context.Context) error {
 	for _, alter := range []string{
 		`ALTER TABLE entries ADD COLUMN read INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE feeds ADD COLUMN folder_id TEXT DEFAULT '' REFERENCES folders(id) ON DELETE SET NULL`,
+		`ALTER TABLE feeds ADD COLUMN max_age TEXT DEFAULT ''`,
 	} {
 		if _, err := s.db.ExecContext(ctx, alter); err != nil {
 			// Ignore "duplicate column" errors on re-run
@@ -65,12 +66,12 @@ func isDupColumnError(err error) bool {
 }
 
 func (s *sqliteStorage) AddFeed(ctx context.Context, feed *domain.Feed) error {
-	const q = `INSERT INTO feeds (id, title, description, site_url, feed_url, feed_type, etag, last_modified, folder_id, created_at, updated_at, last_fetched)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	const q = 	`INSERT INTO feeds (id, title, description, site_url, feed_url, feed_type, etag, last_modified, folder_id, max_age, created_at, updated_at, last_fetched)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	_, err := s.db.ExecContext(ctx, q,
 		feed.ID, feed.Title, feed.Description, feed.SiteURL, feed.FeedURL,
 		string(feed.FeedType), feed.ETag, feed.LastModified,
-		nullIfEmpty(feed.FolderID),
+		nullIfEmpty(feed.FolderID), feed.MaxAge,
 		feed.CreatedAt.Format(time.RFC3339), feed.UpdatedAt.Format(time.RFC3339),
 		feed.LastFetched.Format(time.RFC3339),
 	)
@@ -80,7 +81,7 @@ func (s *sqliteStorage) AddFeed(ctx context.Context, feed *domain.Feed) error {
 	return nil
 }
 
-const feedCols = `id, title, description, site_url, feed_url, feed_type, etag, last_modified, folder_id, created_at, updated_at, last_fetched`
+const feedCols = `id, title, description, site_url, feed_url, feed_type, etag, last_modified, folder_id, max_age, created_at, updated_at, last_fetched`
 
 func (s *sqliteStorage) GetFeed(ctx context.Context, id string) (*domain.Feed, error) {
 	const q = `SELECT ` + feedCols + ` FROM feeds WHERE id = ?`
@@ -126,10 +127,10 @@ func (s *sqliteStorage) ListFeeds(ctx context.Context) ([]*domain.Feed, error) {
 }
 
 func (s *sqliteStorage) UpdateFeed(ctx context.Context, feed *domain.Feed) error {
-	const q = `UPDATE feeds SET title=?, description=?, site_url=?, feed_type=?, etag=?, last_modified=?, folder_id=?, updated_at=?, last_fetched=? WHERE id=?`
+	const q = `UPDATE feeds SET title=?, description=?, site_url=?, feed_type=?, etag=?, last_modified=?, folder_id=?, max_age=?, updated_at=?, last_fetched=? WHERE id=?`
 	_, err := s.db.ExecContext(ctx, q,
 		feed.Title, feed.Description, feed.SiteURL, string(feed.FeedType),
-		feed.ETag, feed.LastModified, nullIfEmpty(feed.FolderID),
+		feed.ETag, feed.LastModified, nullIfEmpty(feed.FolderID), feed.MaxAge,
 		feed.UpdatedAt.Format(time.RFC3339), feed.LastFetched.Format(time.RFC3339),
 		feed.ID,
 	)
@@ -352,6 +353,23 @@ func (s *sqliteStorage) DeleteEntriesOlderThan(ctx context.Context, age time.Dur
 	return n, nil
 }
 
+func (s *sqliteStorage) DeleteEntriesOlderThanForFeed(ctx context.Context, feedID string, age time.Duration) (int64, error) {
+	if age <= 0 {
+		return 0, nil
+	}
+	cutoff := time.Now().Add(-age)
+	const q = `DELETE FROM entries WHERE feed_id = ? AND published_at != '' AND published_at < ?`
+	res, err := s.db.ExecContext(ctx, q, feedID, cutoff.Format(time.RFC3339))
+	if err != nil {
+		return 0, fmt.Errorf("delete entries older than for feed: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
 func (s *sqliteStorage) Vacuum(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx, `VACUUM`)
 	if err != nil {
@@ -377,7 +395,7 @@ func scanFeed(row scanner) (*domain.Feed, error) {
 	var feedType, createdAt, updatedAt, lastFetched string
 	var folderID sql.NullString
 	err := row.Scan(&f.ID, &f.Title, &f.Description, &f.SiteURL, &f.FeedURL,
-		&feedType, &f.ETag, &f.LastModified, &folderID,
+		&feedType, &f.ETag, &f.LastModified, &folderID, &f.MaxAge,
 		&createdAt, &updatedAt, &lastFetched)
 	if err != nil {
 		return nil, fmt.Errorf("scan feed: %w", err)

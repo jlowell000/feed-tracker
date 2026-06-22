@@ -13,3 +13,6 @@ tui:
 
 prune:
   max_age: 0
+  # overrides:
+  #   type:
+  #     activitypub: 7d

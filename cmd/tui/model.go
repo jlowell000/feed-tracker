@@ -78,9 +78,10 @@ type model struct {
 	renameFolderID string
 	exportFilter   string
 	importSpecs    []opml.FeedSpec
-	editFeed       *domain.Feed
-	editTitleInput textinput.Model
-	editURLInput   textinput.Model
+	editFeed        *domain.Feed
+	editTitleInput  textinput.Model
+	editURLInput    textinput.Model
+	editMaxAgeInput textinput.Model
 
 	searchQuery  string
 	filterFeedID string
@@ -100,6 +101,8 @@ autoRefreshRemaining time.Duration
 	textInput textinput.Model
 	spinner   spinner.Model
 	viewport  viewport.Model
+
+	lastFetchTime time.Time
 
 	ready bool
 }
@@ -206,6 +209,11 @@ func initialModel(cfg *config.Config, store storage.Storage, tracker *feedtracke
 	eui.Width = 60
 	eui.CharLimit = 2048
 
+	emi := textinput.New()
+	emi.Placeholder = "Max entry age (e.g. 14d, empty = global)"
+	emi.Width = 30
+	emi.CharLimit = 20
+
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = spinnerStyle
@@ -225,6 +233,8 @@ func initialModel(cfg *config.Config, store storage.Storage, tracker *feedtracke
 		textInput:           ti,
 		editTitleInput:      eti,
 		editURLInput:        eui,
+		editMaxAgeInput:     emi,
+		fetching:            true,
 		spinner:             s,
 		viewport:            vp,
 		autoRefreshInterval:  cfg.TUI.AutoRefresh,
@@ -245,6 +255,7 @@ func (m model) Init() tea.Cmd {
 	cmds := []tea.Cmd{
 		loadFeedsCmd(m.store, m.cfg.HTTP.Timeout),
 		m.spinner.Tick,
+		fetchAllFeedsCmd(m.tracker, m.store, m.cfg.HTTP.Timeout),
 	}
 	if m.autoRefreshInterval > 0 {
 		cmds = append(cmds, autoRefreshTick(m.autoRefreshInterval), countdownTick())

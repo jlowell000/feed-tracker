@@ -58,7 +58,7 @@ cp config.example.yaml config.yaml
 | `add <url>` | Add a feed by URL — detects format automatically |
 | `fetch [<name> \| --feed-id <id>]` | Fetch new entries from all feeds, or a specific one |
 | `feeds [--names \| --folders]` | List feeds with metadata, unread counts. `--names` one per line, `--folders` grouped by folder |
-| `feed update <name> [--title <title>] [--url <url>]` | Update feed title or URL |
+| `feed update <name> [--title <title>] [--url <url>] [--prune-age <duration>]` | Update feed title, URL, and/or per-feed prune age |
 | `open <entry-id>` | Open entry URL in system browser |
 | `folder` | List folders with feed counts |
 | `folder create <name>` | Create a folder |

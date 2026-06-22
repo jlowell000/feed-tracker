@@ -12,7 +12,7 @@ func (m model) editFeedView() string {
 	var b strings.Builder
 
 	b.WriteString(headerStyle.Render(" < Edit Feed"))
-	b.WriteString(helpStyle.Render("  " + renderHintLine([]*helpBinding{&bindingEnterSave, &bindingEscCancel, &bindingHintQuit}, nil)))
+	b.WriteString(helpStyle.Render("  " + renderHintLine([]*helpBinding{&bindingTab, &bindingEnterSave, &bindingEscCancel, &bindingHintQuit}, nil)))
 	b.WriteString("\n\n")
 
 	b.WriteString(detailLabelStyle.Render("  Title:"))
@@ -25,6 +25,12 @@ func (m model) editFeedView() string {
 	b.WriteString("\n\n")
 	b.WriteString("  ")
 	b.WriteString(m.editURLInput.View())
+	b.WriteString("\n\n")
+
+	b.WriteString(detailLabelStyle.Render("  Max Age:"))
+	b.WriteString("\n\n")
+	b.WriteString("  ")
+	b.WriteString(m.editMaxAgeInput.View())
 	b.WriteString("\n")
 
 	b.WriteString("\n")

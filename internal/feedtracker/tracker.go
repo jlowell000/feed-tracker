@@ -75,18 +75,46 @@ func (t *Tracker) AddFeed(ctx context.Context, feedURL string) (*domain.Feed, er
 }
 
 func (t *Tracker) Prune(ctx context.Context) {
-	maxAge := time.Duration(t.cfg.Prune.MaxAge)
-	if maxAge <= 0 {
+	globalMaxAge := time.Duration(t.cfg.Prune.MaxAge)
+	if globalMaxAge <= 0 {
 		return
 	}
-	n, err := t.store.DeleteEntriesOlderThan(ctx, maxAge)
+
+	feeds, err := t.store.ListFeeds(ctx)
 	if err != nil {
-		log.Printf("warning: auto-prune: %v", err)
+		log.Printf("warning: auto-prune list feeds: %v", err)
 		return
 	}
-	if n > 0 {
-		log.Printf("auto-prune: removed %d entr%s older than %s", n, map[bool]string{true: "y", false: "ies"}[n == 1], maxAge)
+
+	for _, feed := range feeds {
+		age := t.effectiveMaxAge(feed)
+		if age <= 0 {
+			continue
+		}
+		n, err := t.store.DeleteEntriesOlderThanForFeed(ctx, feed.ID, age)
+		if err != nil {
+			log.Printf("warning: auto-prune feed %s: %v", feed.Title, err)
+			continue
+		}
+		if n > 0 {
+			log.Printf("auto-prune: removed %d entr%s from %q (older than %s)", n, map[bool]string{true: "y", false: "ies"}[n == 1], feed.Title, age)
+		}
 	}
+}
+
+func (t *Tracker) effectiveMaxAge(feed *domain.Feed) time.Duration {
+	if feed.MaxAge != "" {
+		d, err := parseDuration(feed.MaxAge)
+		if err == nil && d > 0 {
+			return d
+		}
+	}
+	if t.cfg.Prune.Overrides.Type != nil {
+		if d, ok := t.cfg.Prune.Overrides.Type[string(feed.FeedType)]; ok && time.Duration(d) > 0 {
+			return time.Duration(d)
+		}
+	}
+	return time.Duration(t.cfg.Prune.MaxAge)
 }
 
 func (t *Tracker) FetchFeed(ctx context.Context, feed *domain.Feed) (int, error) {
@@ -182,4 +210,15 @@ func (t *Tracker) FetchAllFeeds(ctx context.Context) (int, error) {
 
 	wg.Wait()
 	return total, nil
+}
+
+func parseDuration(s string) (time.Duration, error) {
+	if len(s) > 1 && s[len(s)-1] == 'd' {
+		var days int
+		if _, err := fmt.Sscanf(s, "%dd", &days); err != nil {
+			return 0, fmt.Errorf("invalid duration %q: %w", s, err)
+		}
+		return time.Duration(days) * 24 * time.Hour, nil
+	}
+	return time.ParseDuration(s)
 }

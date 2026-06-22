@@ -27,6 +27,7 @@ func TestFeedFields(t *testing.T) {
 		ETag:         `"abc123"`,
 		LastModified: "Mon, 01 Jan 2024 00:00:00 GMT",
 		FolderID:     "folder1",
+		MaxAge:       "14d",
 		CreatedAt:    now,
 		UpdatedAt:    now,
 		LastFetched:  now,
@@ -45,6 +46,9 @@ func TestFeedFields(t *testing.T) {
 	}
 	if f.FolderID != "folder1" {
 		t.Errorf("folder id mismatch")
+	}
+	if f.MaxAge != "14d" {
+		t.Errorf("MaxAge = %q, want %q", f.MaxAge, "14d")
 	}
 }
 

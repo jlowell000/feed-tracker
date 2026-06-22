@@ -39,6 +39,7 @@ type Storage interface {
 	SearchEntries(ctx context.Context, query string, limit, offset int) ([]*domain.Entry, error)
 
 	DeleteEntriesOlderThan(ctx context.Context, age time.Duration) (int64, error)
+	DeleteEntriesOlderThanForFeed(ctx context.Context, feedID string, age time.Duration) (int64, error)
 
 	Vacuum(ctx context.Context) error
 	Optimize(ctx context.Context) error

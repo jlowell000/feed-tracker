@@ -12,7 +12,7 @@ import (
 
 func runFeed(ctx context.Context, cfgPath string, args []string) {
 	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "usage: ft feed update <name> [--title <title>] [--url <url>]")
+		fmt.Fprintln(os.Stderr, "usage: ft feed update <name> [--title <title>] [--url <url>] [--prune-age <duration>]")
 		os.Exit(1)
 	}
 
@@ -29,17 +29,18 @@ func runFeedUpdate(ctx context.Context, cfgPath string, args []string) {
 	fs := flag.NewFlagSet("feed update", flag.ExitOnError)
 	title := fs.String("title", "", "new feed title")
 	url := fs.String("url", "", "new feed URL")
+	pruneAge := fs.String("prune-age", "", "max entry age (e.g. 14d, 30d, empty to use global)")
 	fs.Parse(args)
 
 	if fs.NArg() < 1 {
-		fmt.Fprintln(os.Stderr, "usage: ft feed update <name> [--title <title>] [--url <url>]")
+		fmt.Fprintln(os.Stderr, "usage: ft feed update <name> [--title <title>] [--url <url>] [--prune-age <duration>]")
 		os.Exit(1)
 	}
 
 	name := fs.Arg(0)
 
-	if *title == "" && *url == "" {
-		fmt.Fprintln(os.Stderr, "error: at least one of --title or --url is required")
+	if *title == "" && *url == "" && *pruneAge == "" {
+		fmt.Fprintln(os.Stderr, "error: at least one of --title, --url, or --prune-age is required")
 		os.Exit(1)
 	}
 
@@ -69,6 +70,10 @@ func runFeedUpdate(ctx context.Context, cfgPath string, args []string) {
 	}
 	if *url != "" {
 		feed.FeedURL = *url
+		changed = true
+	}
+	if *pruneAge != "" {
+		feed.MaxAge = *pruneAge
 		changed = true
 	}
 

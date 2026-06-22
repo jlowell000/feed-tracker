@@ -62,7 +62,7 @@ func (m model) feedsListView() string {
 		b.WriteString(emptyStyle.Render("  No feeds tracked yet. Press 'a' to add one."))
 		b.WriteString("\n")
 	} else {
-		avail := m.height - 4 // header + blank + blank + status
+		avail := m.height - 3 - m.statusBarHeight()
 		if avail < 1 {
 			avail = 1
 		}
@@ -211,7 +211,7 @@ func (m model) entriesListView() string {
 	} else {
 		showLoadMore := len(m.entries) >= m.entryPageSize
 
-		overhead := 4 // header + blank + blank + status
+		overhead := 3 + m.statusBarHeight()
 		if showLoadMore {
 			overhead++
 		}
@@ -358,7 +358,7 @@ func entryDetailContent(m model) string {
 	return b.String()
 }
 
-func (m model) statusBar() string {
+func (m model) statusBarLeftText() string {
 	status := m.status
 	if status == "" {
 		if m.fetching {
@@ -379,8 +379,14 @@ func (m model) statusBar() string {
 		status = fmt.Sprintf("Ready — auto-refresh in %s", formatDurationRemaining(m.autoRefreshRemaining))
 	}
 
-	left := statusStyle.Render(status)
+	if !m.lastFetchTime.IsZero() && !m.fetching && !m.loading {
+		status += fmt.Sprintf(" — last fetch %s |", m.lastFetchTime.Format("15:04:05"))
+	}
 
+	return status
+}
+
+func (m model) statusBarRightText() string {
 	var right string
 	switch m.screen {
 	case feedsListScreen:
@@ -392,30 +398,51 @@ func (m model) statusBar() string {
 		if len(m.folders) > 0 {
 			r = fmt.Sprintf("%s · %d folders", r, len(m.folders))
 		}
-		right = statusStyle.Render(r)
+		right = r
 	case entriesListScreen:
 		unread := countUnread(m.entries)
 		if m.showRead {
-			right = statusStyle.Render(fmt.Sprintf("%d entries (%d unread)", len(m.entries), unread))
+			right = fmt.Sprintf("%d entries (%d unread)", len(m.entries), unread)
 		} else {
-			right = statusStyle.Render(fmt.Sprintf("%d unread", len(m.entries)))
+			right = fmt.Sprintf("%d unread", len(m.entries))
 		}
 	case entryDetailScreen:
 		if m.viewport.TotalLineCount() > 0 {
 			percent := m.viewport.ScrollPercent()
-			right = statusStyle.Render(fmt.Sprintf("%d%%", int(percent*100)))
+			right = fmt.Sprintf("%d%%", int(percent*100))
 		}
 	}
+	return right
+}
 
-	gap := m.width - lipglossWidth(left) - lipglossWidth(right) - 2
+func (m model) statusBarHeight() int {
+	lw := lipglossWidth(statusStyle.Render(m.statusBarLeftText()))
+	rw := lipglossWidth(statusStyle.Render(m.statusBarRightText()))
+	if lw+rw+2 > m.width {
+		return 2
+	}
+	return 1
+}
+
+func (m model) statusBar() string {
+	left := statusStyle.Render(m.statusBarLeftText())
+	right := m.statusBarRightText()
+	if right == "" {
+		return left
+	}
+	rw := lipglossWidth(statusStyle.Render(right))
+	lw := lipglossWidth(left)
+	if lw+rw+2 > m.width {
+		return left + "\n" + statusStyle.Render(right)
+	}
+	gap := m.width - lw - rw - 2
 	if gap < 1 {
 		gap = 1
 	}
-
 	return fmt.Sprintf("%s%s%s",
 		left,
 		dimmedStyle.Render(strings.Repeat(" ", gap)),
-		right,
+		statusStyle.Render(right),
 	)
 }
 

@@ -62,7 +62,12 @@ func parseDuration(s string) (time.Duration, error) {
 }
 
 type PruneConfig struct {
-	MaxAge Duration `yaml:"max_age"`
+	MaxAge    Duration       `yaml:"max_age"`
+	Overrides PruneOverrides `yaml:"overrides"`
+}
+
+type PruneOverrides struct {
+	Type map[string]Duration `yaml:"type"`
 }
 
 func (c *Config) SetDefaults() {

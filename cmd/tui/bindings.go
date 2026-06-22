@@ -56,6 +56,8 @@ var (
 	bindingEnterConfirm   = helpBinding{"Enter", "Confirm"}
 	bindingEnterSearch    = helpBinding{"Enter", "Search"}
 	bindingNumberSel      = helpBinding{"0-9", "Select"}
+	bindingTab            = helpBinding{"Tab", "Next field"}
+	bindingShiftTab       = helpBinding{"Shift+Tab", "Prev field"}
 	bindingEscCancel      = helpBinding{"Esc", "Cancel"}
 	bindingExportAll      = helpBinding{"a", "All"}
 	bindingExportFolders  = helpBinding{"f", "Folders only"}

@@ -899,3 +899,72 @@ func TestDeleteEntriesOlderThan_AllDeleted(t *testing.T) {
 		t.Errorf("len(remaining) = %d, want 0", len(remaining))
 	}
 }
+
+func TestDeleteEntriesOlderThanForFeed(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID1 := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID1, Title: "Feed A", FeedURL: "https://a.com/feed", FeedType: domain.FeedTypeRSS})
+	feedID2 := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID2, Title: "Feed B", FeedURL: "https://b.com/feed", FeedType: domain.FeedTypeAtom})
+
+	now := time.Now()
+	for _, id := range []string{feedID1, feedID2} {
+		s.UpsertEntry(ctx, &domain.Entry{
+			ID: uuid.New().String(), FeedID: id, ExternalID: "old-" + id,
+			Title: "Old Entry", PublishedAt: now.Add(-90 * 24 * time.Hour), FetchedAt: time.Now(),
+		})
+		s.UpsertEntry(ctx, &domain.Entry{
+			ID: uuid.New().String(), FeedID: id, ExternalID: "new-" + id,
+			Title: "New Entry", PublishedAt: now, FetchedAt: time.Now(),
+		})
+	}
+
+	n, err := s.DeleteEntriesOlderThanForFeed(ctx, feedID1, 30*24*time.Hour)
+	if err != nil {
+		t.Fatalf("DeleteEntriesOlderThanForFeed: %v", err)
+	}
+	if n != 1 {
+		t.Errorf("deleted %d, want 1", n)
+	}
+
+	remaining1, err := s.ListEntries(ctx, feedID1, 10, 0)
+	if err != nil {
+		t.Fatalf("ListEntries feed1: %v", err)
+	}
+	if len(remaining1) != 1 {
+		t.Errorf("len(remaining1) = %d, want 1", len(remaining1))
+	}
+	if remaining1[0].Title != "New Entry" {
+		t.Errorf("remaining[0].Title = %q, want %q", remaining1[0].Title, "New Entry")
+	}
+
+	remaining2, err := s.ListEntries(ctx, feedID2, 10, 0)
+	if err != nil {
+		t.Fatalf("ListEntries feed2: %v", err)
+	}
+	if len(remaining2) != 2 {
+		t.Errorf("len(remaining2) = %d, want 2 (other feed unaffected)", len(remaining2))
+	}
+}
+
+func TestDeleteEntriesOlderThanForFeed_ZeroAge(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feedID, ExternalID: "e1",
+		Title: "Entry", PublishedAt: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), FetchedAt: time.Now(),
+	})
+
+	n, err := s.DeleteEntriesOlderThanForFeed(ctx, feedID, 0)
+	if err != nil {
+		t.Fatalf("DeleteEntriesOlderThanForFeed(0): %v", err)
+	}
+	if n != 0 {
+		t.Errorf("deleted %d, want 0", n)
+	}
+}

@@ -50,3 +50,15 @@ prune:
 | Field | Default | Description |
 |-------|---------|-------------|
 | `max_age` | `0` | Delete entries older than this duration (e.g. `30d`, `90d`). `0` disables pruning. |
+| `overrides.type.<type>` | — | Per-feed-type override (e.g. `overrides.type.activitypub: 7d`). Overrides `max_age` for feeds of that type. |
+
+### prune.overrides.type
+
+Per-feed-type overrides take precedence over the global `prune.max_age`. Per-feed settings (set via `ft feed update --prune-age`) take precedence over type overrides.
+
+| Type key | Description |
+|---|---|
+| `rss` | RSS feeds |
+| `atom` | Atom feeds |
+| `jsonfeed` | JSON Feed feeds |
+| `activitypub` | ActivityPub feeds |

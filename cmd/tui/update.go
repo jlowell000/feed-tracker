@@ -21,7 +21,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.viewport.Width = msg.Width - 4
-		m.viewport.Height = msg.Height - 7
+		m.viewport.Height = msg.Height - 6 - m.statusBarHeight()
 		if !m.ready {
 			m.ready = true
 		}
@@ -198,6 +198,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case fetchCompleteMsg:
 		m.fetching = false
+		m.lastFetchTime = time.Now()
 		if msg.err != nil {
 			m.status = fmt.Sprintf("Fetch error: %v", msg.err)
 		} else {
@@ -324,6 +325,9 @@ func (m model) handleFeedsListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.editFeed = item.feed
 				m.editTitleInput.SetValue(item.feed.Title)
 				m.editURLInput.SetValue(item.feed.FeedURL)
+				m.editMaxAgeInput.SetValue(item.feed.MaxAge)
+				m.editURLInput.Blur()
+				m.editMaxAgeInput.Blur()
 				m.prevScreen = m.screen
 				m.screen = editFeedScreen
 				m.editTitleInput.Focus()
@@ -494,6 +498,9 @@ func (m model) handleEntriesListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.editFeed = f
 					m.editTitleInput.SetValue(f.Title)
 					m.editURLInput.SetValue(f.FeedURL)
+					m.editMaxAgeInput.SetValue(f.MaxAge)
+					m.editURLInput.Blur()
+					m.editMaxAgeInput.Blur()
 					m.prevScreen = m.screen
 					m.screen = editFeedScreen
 					m.editTitleInput.Focus()
@@ -786,7 +793,8 @@ func (m model) handleEditFeedKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyEnter:
 		ti := m.editTitleInput.Value()
 		ui := m.editURLInput.Value()
-		if ti != "" || ui != "" {
+		mi := m.editMaxAgeInput.Value()
+		if ti != "" || ui != "" || mi != "" || m.editFeed.MaxAge != "" {
 			feed := *m.editFeed
 			if ti != "" {
 				feed.Title = ti
@@ -794,6 +802,7 @@ func (m model) handleEditFeedKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if ui != "" {
 				feed.FeedURL = ui
 			}
+			feed.MaxAge = mi
 			m.editFeed = nil
 			m.screen = m.prevScreen
 			return m, updateFeedCmd(m.store, &feed, m.cfg.HTTP.Timeout)
@@ -802,12 +811,39 @@ func (m model) handleEditFeedKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.editFeed = nil
 		m.screen = m.prevScreen
 		return m, nil
+	case tea.KeyTab:
+		switch {
+		case m.editTitleInput.Focused():
+			m.editTitleInput.Blur()
+			m.editURLInput.Focus()
+		case m.editURLInput.Focused():
+			m.editURLInput.Blur()
+			m.editMaxAgeInput.Focus()
+		default:
+			m.editMaxAgeInput.Blur()
+			m.editTitleInput.Focus()
+		}
+		return m, nil
+	case tea.KeyShiftTab:
+		switch {
+		case m.editMaxAgeInput.Focused():
+			m.editMaxAgeInput.Blur()
+			m.editURLInput.Focus()
+		case m.editURLInput.Focused():
+			m.editURLInput.Blur()
+			m.editTitleInput.Focus()
+		default:
+			m.editTitleInput.Blur()
+			m.editMaxAgeInput.Focus()
+		}
+		return m, nil
 	}
 
-	var etiCmd, euiCmd tea.Cmd
+	var etiCmd, euiCmd, emiCmd tea.Cmd
 	m.editTitleInput, etiCmd = m.editTitleInput.Update(msg)
 	m.editURLInput, euiCmd = m.editURLInput.Update(msg)
-	return m, tea.Batch(etiCmd, euiCmd)
+	m.editMaxAgeInput, emiCmd = m.editMaxAgeInput.Update(msg)
+	return m, tea.Batch(etiCmd, euiCmd, emiCmd)
 }
 
 func (m model) handleImportKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

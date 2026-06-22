@@ -233,16 +233,23 @@ tui:
 
 ---
 
-## Phase 10: Granular Pruning Controls
+## Phase 10: Granular Pruning Controls ✅
 
-Per-feed-type and per-feed overrides for entry age-based deletion.
+> Completed — all items implemented.
 
-| Item | Approach |
+### What was done
+
+| Item | Files changed |
 |---|---|
-| **Per-feed-type config** | Config overrides per feed type (`rss`, `atom`, `jsonfeed`, `activitypub`), e.g. `prune.overrides.type.activitypub.max_age: 7d` |
-| **Per-feed config** | Add `max_age` column to feeds table or use feed metadata. |
-| **CLI editing** | `ft feed update <name> --prune-age 14d` |
-| **TUI editing** | Per-feed prune age setting in TUI feed view. |
+| **Config: `prune.overrides.type`** | `internal/config/config.go`, `config.example.yaml`, `config.yaml` |
+| **Domain: `Feed.MaxAge` field** | `internal/domain/feed.go` |
+| **Storage: `max_age` column + migration** | `internal/storage/migrations.go`, `internal/storage/sqlite.go` |
+| **Storage: `DeleteEntriesOlderThanForFeed`** | `internal/storage/storage.go`, `internal/storage/sqlite.go` |
+| **Tracker: granular `Prune()`** | `internal/feedtracker/tracker.go` — iterates feeds, resolves feed-level > type-level > global max_age |
+| **CLI: `ft feed update --prune-age`** | `cmd/cli/feed.go` |
+| **TUI: MaxAge field in feed edit** | `cmd/tui/model.go`, `cmd/tui/update.go`, `cmd/tui/views.go` |
+| **Tests** | `internal/storage/sqlite_test.go` (2 new tests), `internal/domain/feed_test.go` (MaxAge field check) |
+| **Docs** | `docs/cli.md`, `docs/config.md`, `tasks/plan.md`, `tasks/PROGRESS.md` |
 ---
 
 ## Recommended Order

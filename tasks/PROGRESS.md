@@ -156,3 +156,16 @@
 | # | Step | Status |
 |---|---|---|
 | 97 | Refactor: split view.go into bindings.go, help.go, views.go | ✓ |
+
+## Phase 10: Granular Pruning Controls
+
+| # | Step | Status |
+|---|---|---|
+| 98 | Config: prune.overrides.type per-feed-type duration | ✓ |
+| 99 | Domain: Feed.MaxAge field | ✓ |
+| 100 | Storage: max_age column + migration + DeleteEntriesOlderThanForFeed | ✓ |
+| 101 | Tracker: granular Prune() with feed-level > type-level > global resolution | ✓ |
+| 102 | CLI: ft feed update --prune-age flag | ✓ |
+| 103 | TUI: MaxAge field in feed edit screen | ✓ |
+| 104 | Tests: storage per-feed prune + domain MaxAge field | ✓ |
+| 105 | Docs: cli.md, config.md, plan.md, PROGRESS.md | ✓ |

@@ -21,6 +21,7 @@ type Feed struct {
 	ETag         string
 	LastModified string
 	FolderID     string
+	MaxAge       string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	LastFetched  time.Time
