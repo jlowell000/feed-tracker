@@ -52,12 +52,14 @@ The top entry in the feed list is **All Entries** — select it to see entries f
 | `r` | Refresh feed list | Feed list |
 | `u` | Toggle show read / unread | Entries list |
 | `s` | Search entries | Entries list |
+| `S` | Toggle starred-only filter | Entries list |
 | `a` | Mark displayed entries read | Entries list |
 | `A` | Mark all in feed read | Entries list |
 | `L` | Load more entries | Entries list |
 | `f` | Filter by feed | Entries list (All Entries view) |
 | `[` / `]` | Switch to prev/next feed | Entries list |
 | `M` | Mark entry unread | Entry detail |
+| `s` | Star/unstar entry | Entry detail |
 | `o` | Open entry URL in browser | Entry detail |
 | `↑/↓` | Scroll line by line | Entry detail |
 | `PgUp/PgDn` | Scroll page by page | Entry detail |

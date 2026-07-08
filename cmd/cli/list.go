@@ -18,6 +18,7 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 	limit := fs.Int("limit", 20, "max entries to show")
 	unreadOnly := fs.Bool("unread", false, "show only unread entries")
 	detail := fs.Bool("detail", false, "show detailed entry view")
+	starred := fs.Bool("starred", false, "show only starred entries")
 	search := fs.String("search", "", "search entries by keyword")
 	fs.Parse(args)
 
@@ -50,7 +51,9 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 	}
 
 	var entries []*domain.Entry
-	if *search != "" {
+	if *starred {
+		entries, err = store.ListStarredEntries(ctx, resolvedID, *limit, 0)
+	} else if *search != "" {
 		entries, err = store.SearchEntries(ctx, *search, *limit, 0)
 	} else if *unreadOnly {
 		entries, err = store.ListEntriesUnread(ctx, resolvedID, *limit, 0)
@@ -75,11 +78,11 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	showFeed := resolvedID == ""
 	if showFeed {
-		fmt.Fprintln(w, "PUBLISHED\tFEED\tTITLE\tURL\tREAD")
-		fmt.Fprintln(w, "---------\t----\t-----\t---\t----")
+		fmt.Fprintln(w, "PUBLISHED\tFEED\tTITLE\tURL\tREAD\tSTARRED")
+		fmt.Fprintln(w, "---------\t----\t-----\t---\t----\t-------")
 	} else {
-		fmt.Fprintln(w, "PUBLISHED\tTITLE\tURL\tREAD")
-		fmt.Fprintln(w, "---------\t-----\t---\t----")
+		fmt.Fprintln(w, "PUBLISHED\tTITLE\tURL\tREAD\tSTARRED")
+		fmt.Fprintln(w, "---------\t-----\t---\t----\t-------")
 	}
 	for _, e := range entries {
 		pub := e.PublishedAt.Format("2006-01-02 15:04")
@@ -91,10 +94,14 @@ func runList(ctx context.Context, cfgPath string, args []string) {
 		if e.Read {
 			read = "yes"
 		}
+		star := ""
+		if e.Starred {
+			star = "*"
+		}
 		if showFeed {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", pub, e.FeedTitle, title, e.URL, read)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", pub, e.FeedTitle, title, e.URL, read, star)
 		} else {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", pub, title, e.URL, read)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", pub, title, e.URL, read, star)
 		}
 	}
 	w.Flush()
@@ -117,6 +124,10 @@ func printEntriesDetail(entries []*domain.Entry, resolvedID string) {
 		if e.Read {
 			read = "yes"
 		}
+		star := ""
+		if e.Starred {
+			star = "★"
+		}
 		fmt.Printf("Title:   %s\n", title)
 		fmt.Printf("Published: %s\n", pub)
 		if e.Author != "" {
@@ -126,6 +137,7 @@ func printEntriesDetail(entries []*domain.Entry, resolvedID string) {
 			fmt.Printf("Feed:    %s\n", e.FeedTitle)
 		}
 		fmt.Printf("URL:     %s\n", e.URL)
+		fmt.Printf("Starred: %s\n", star)
 		fmt.Printf("Read:    %s\n", read)
 		body := e.Content
 		if body == "" {

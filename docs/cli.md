@@ -68,10 +68,12 @@ cp config.example.yaml config.yaml
 | `export [--output <file>] [--folders-only \| --feeds-only]` | Export feeds to OPML file. `--folders-only`/`--feeds-only` filter by folder status |
 | `import [--dry-run] <file.opml>` | Import feeds from OPML file (preserves folders) |
 | `delete <name> \| --feed-id <id>` | Delete a feed and all its entries |
-| `list [<name> \| --feed-id <id>] [--limit <n>] [--unread] [--detail] [--search <q>]` | List entries. `--unread` filters, `--detail` shows full entry info, `--search` filters by keyword |
+| `list [<name> \| --feed-id <id>] [--limit <n>] [--unread] [--detail] [--starred] [--search <q>]` | List entries. `--unread`/`--starred` filters, `--detail` shows full entry info, `--search` filters by keyword |
 | `search [--limit <n>] <query>` | Search entries by keyword across title and summary |
 | `read [--all \| --feed <name> \| --feed-id <id> \| <entry-id>]` | Mark entries as read: all, by feed, or single entry |
 | `unread <entry-id>` | Mark an entry as unread |
+| `star <entry-id>` | Star/bookmark an entry for later reference |
+| `unstar <entry-id>` | Remove star from an entry |
 | `prune` | Delete entries older than the configured `prune.max_age` |
 | `completion bash\|zsh` | Generate shell completion script |
 

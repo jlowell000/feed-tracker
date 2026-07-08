@@ -16,4 +16,5 @@ type Entry struct {
 	UpdatedAt   time.Time
 	FetchedAt   time.Time
 	Read        bool
+	Starred     bool
 }

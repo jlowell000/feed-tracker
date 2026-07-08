@@ -39,8 +39,10 @@ var (
 	bindingRefresh        = helpBinding{"r", "Refresh"}
 	bindingSearch         = helpBinding{"s", "Search"}
 	bindingLoadMore       = helpBinding{"L", "Load more"}
+	bindingStarToggle     = helpBinding{"S", "Starred filter"}
 	bindingToggleRead     = helpBinding{"u", "Toggle read"}
 	bindingUnread         = helpBinding{"M", "Unread"}
+	bindingStar           = helpBinding{"s", "Star/Unstar"}
 	bindingOpen           = helpBinding{"o", "Open"}
 	bindingPrevNext       = helpBinding{"[/]", "Previous/next feed"}
 	bindingScroll         = helpBinding{"↑/↓", "Scroll line by line"}
@@ -78,11 +80,11 @@ var (
 	}
 	entriesListBindings = []*helpBinding{
 		&bindingEnterDetail, &bindingToggleRead, &bindingFilter, &bindingSearch,
-		&bindingMarkRead, &bindingAllRead, &bindingLoadMore, &bindingEdit,
-		&bindingPrevNext, &bindingUnread, &bindingOpen, &bindingRefresh,
+		&bindingStarToggle, &bindingMarkRead, &bindingAllRead, &bindingLoadMore,
+		&bindingEdit, &bindingPrevNext, &bindingUnread, &bindingOpen, &bindingRefresh,
 	}
 	detailBindings = []*helpBinding{
-		&bindingScroll, &bindingPage, &bindingUnread, &bindingOpen,
+		&bindingScroll, &bindingPage, &bindingUnread, &bindingStar, &bindingOpen,
 		&bindingRefresh,
 	}
 )
@@ -95,13 +97,14 @@ var (
 	}
 	entriesListHints = []*helpBinding{
 		&bindingToggleRead, &bindingFilter, &bindingSearch,
-		&bindingMarkRead, &bindingAllRead, &bindingLoadMore, &bindingEdit,
+		&bindingStarToggle, &bindingMarkRead, &bindingAllRead, &bindingLoadMore,
+		&bindingEdit,
 	}
 	entriesListSuffixHints = []*helpBinding{
 		&bindingUnread, &bindingOpen, &bindingRefresh,
 	}
 	detailActionHints = []*helpBinding{
-		&bindingUnread, &bindingOpen, &bindingRefresh,
+		&bindingUnread, &bindingStar, &bindingOpen, &bindingRefresh,
 		&bindingScroll, &bindingPage,
 	}
 	exitHints = []*helpBinding{

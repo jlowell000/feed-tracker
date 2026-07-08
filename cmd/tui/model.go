@@ -83,8 +83,9 @@ type model struct {
 	editURLInput    textinput.Model
 	editMaxAgeInput textinput.Model
 
-	searchQuery  string
-	filterFeedID string
+	searchQuery   string
+	starredFilter bool
+	filterFeedID  string
 
 	err    error
 	status string
@@ -234,6 +235,7 @@ func initialModel(cfg *config.Config, store storage.Storage, tracker *feedtracke
 		editTitleInput:      eti,
 		editURLInput:        eui,
 		editMaxAgeInput:     emi,
+		showRead:            true,
 		fetching:            true,
 		spinner:             s,
 		viewport:            vp,
@@ -623,6 +625,42 @@ func searchEntriesCmd(store storage.Storage, query string, limit int, timeout ti
 			return errMsg{err}
 		}
 		return searchResultsMsg{entries: entries}
+	}
+}
+
+func loadStarredEntriesCmd(store storage.Storage, feedID string, limit int, timeout time.Duration) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		entries, err := store.ListStarredEntries(ctx, feedID, limit, 0)
+		if err != nil {
+			return errMsg{err}
+		}
+		return entriesLoadedMsg{entries: entries}
+	}
+}
+
+type entryStarredMsg struct{}
+
+func toggleStarCmd(store storage.Storage, entryID string, timeout time.Duration) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		// Get current entry to check star state
+		e, err := store.GetEntry(ctx, entryID)
+		if err != nil {
+			return errMsg{err}
+		}
+		if e.Starred {
+			if err := store.UnstarEntry(ctx, entryID); err != nil {
+				return errMsg{err}
+			}
+		} else {
+			if err := store.StarEntry(ctx, entryID); err != nil {
+				return errMsg{err}
+			}
+		}
+		return entryStarredMsg{}
 	}
 }
 

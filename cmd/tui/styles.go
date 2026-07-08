@@ -55,6 +55,10 @@ var (
 				Foreground(lipgloss.Color("#FFD700")).
 				Bold(true)
 
+	starredItemStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFD700")).
+			Bold(true)
+
 	readItemStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#555555"))
 

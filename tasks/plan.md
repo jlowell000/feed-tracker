@@ -252,18 +252,21 @@ tui:
 | **Docs** | `docs/cli.md`, `docs/config.md`, `tasks/plan.md`, `tasks/PROGRESS.md` |
 ---
 
-## Phase 11: Star/Bookmark Entries
+## Phase 11: Star/Bookmark Entries ✅
 
-Add a `Starred` field so users can save important entries for later, accessible from both CLI and TUI.
+> Completed — all items implemented.
 
-| Item | Files |
+### What was done
+
+| Item | Files changed |
 |---|---|
 | **Domain**: `Starred bool` on `Entry` | `internal/domain/entry.go` |
-| **Storage**: migration, `StarEntry`/`UnstarEntry`/`ListStarredEntries`, update `scanEntry` | `internal/storage/storage.go`, `sqlite.go`, `sqlite_test.go` |
-| **CLI**: `ft star <id>`, `ft unstar <id>`, `ft list --starred` | `cmd/cli/star.go`, `unstar.go`, `list.go`, `main.go` |
-| **TUI entry detail**: `s` key toggles star/unstar | `cmd/tui/update.go`, `view.go` |
-| **TUI entry list**: star indicator, starred style, `S` key for starred-only filter | `cmd/tui/view.go`, `update.go`, `model.go`, `styles.go` |
-| **Help + bindings**: update for new keys | `cmd/tui/bindings.go`, `help.go` |
+| **Storage**: migration, `StarEntry`/`UnstarEntry`/`ListStarredEntries`, column constants, `scanEntry` | `internal/storage/storage.go`, `sqlite.go`, `migrations.go`, `sqlite_test.go` |
+| **CLI**: `ft star <id>`, `ft unstar <id>`, `ft list --starred` | `cmd/cli/star.go`, `cmd/cli/unstar.go`, `list.go`, `main.go`, `completion.go` |
+| **TUI entry detail**: `s` key toggles star/unstar | `cmd/tui/update.go` |
+| **TUI entry list**: star indicator (★), `starredItemStyle`, `S` key for starred-only filter | `cmd/tui/view.go`, `update.go`, `model.go`, `styles.go` |
+| **Help + bindings**: `bindingStar`, `bindingStarToggle` added | `cmd/tui/bindings.go` |
+| **Docs**: plan, progress, CLI, TUI | `tasks/plan.md`, `tasks/PROGRESS.md`, `docs/cli.md`, `docs/tui.md` |
 
 ---
 
@@ -360,7 +363,7 @@ Upgrade from LIKE-based search to SQLite FTS5 for better performance and relevan
 12. ✅ ~~Phase 8~~ — Performance & polish (completed)
 13. ✅ ~~Phase 9 — view.go refactor (split into bindings.go, help.go, views.go)~~
 14. ✅ ~~Phase 10 — Granular pruning controls (per-feed-type, per-feed)~~
-15. **Phase 11** — Star/Bookmark entries
+15. ✅ ~~Phase 11 — Star/Bookmark entries~~
 16. **Phase 12** — Manual entry deletion
 17. **Phase 13** — TUI maintenance operations (prune/vacuum/optimize)
 18. **Phase 14** — Desktop notifications

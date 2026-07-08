@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,6 +19,11 @@ type sqliteStorage struct {
 }
 
 func New(path string) (Storage, error) {
+	if dir := filepath.Dir(path); dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("create db directory: %w", err)
+		}
+	}
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
@@ -49,6 +56,7 @@ func (s *sqliteStorage) Migrate(ctx context.Context) error {
 		`ALTER TABLE entries ADD COLUMN read INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE feeds ADD COLUMN folder_id TEXT DEFAULT '' REFERENCES folders(id) ON DELETE SET NULL`,
 		`ALTER TABLE feeds ADD COLUMN max_age TEXT DEFAULT ''`,
+		`ALTER TABLE entries ADD COLUMN starred INTEGER NOT NULL DEFAULT 0`,
 	} {
 		if _, err := s.db.ExecContext(ctx, alter); err != nil {
 			// Ignore "duplicate column" errors on re-run
@@ -150,8 +158,8 @@ func (s *sqliteStorage) DeleteFeed(ctx context.Context, id string) error {
 }
 
 func (s *sqliteStorage) UpsertEntry(ctx context.Context, entry *domain.Entry) (bool, error) {
-	const q = `INSERT INTO entries (id, feed_id, external_id, title, url, summary, content, author, published_at, updated_at, fetched_at, read)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+	const q = `INSERT INTO entries (id, feed_id, external_id, title, url, summary, content, author, published_at, updated_at, fetched_at, read, starred)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
 		ON CONFLICT(feed_id, external_id) DO NOTHING`
 	res, err := s.db.ExecContext(ctx, q,
 		entry.ID, entry.FeedID, entry.ExternalID,
@@ -170,11 +178,11 @@ func (s *sqliteStorage) UpsertEntry(ctx context.Context, entry *domain.Entry) (b
 	return n > 0, nil
 }
 
-const entryCols = `id, feed_id, external_id, title, url, summary, content, author, published_at, updated_at, fetched_at, read`
-const entryColsPrefixed = `e.id, e.feed_id, e.external_id, e.title, e.url, e.summary, e.content, e.author, e.published_at, e.updated_at, e.fetched_at, e.read`
+const entryCols = `id, feed_id, external_id, title, url, summary, content, author, published_at, updated_at, fetched_at, read, starred`
+const entryColsPrefixed = `e.id, e.feed_id, e.external_id, e.title, e.url, e.summary, e.content, e.author, e.published_at, e.updated_at, e.fetched_at, e.read, e.starred`
 
-const entryListCols = `id, feed_id, external_id, title, url, '' as summary, '' as content, author, published_at, updated_at, fetched_at, read`
-const entryListColsPrefixed = `e.id, e.feed_id, e.external_id, e.title, e.url, '' as summary, '' as content, e.author, e.published_at, e.updated_at, e.fetched_at, e.read`
+const entryListCols = `id, feed_id, external_id, title, url, '' as summary, '' as content, author, published_at, updated_at, fetched_at, read, starred`
+const entryListColsPrefixed = `e.id, e.feed_id, e.external_id, e.title, e.url, '' as summary, '' as content, e.author, e.published_at, e.updated_at, e.fetched_at, e.read, e.starred`
 
 func (s *sqliteStorage) ListEntries(ctx context.Context, feedID string, limit, offset int) ([]*domain.Entry, error) {
 	if limit <= 0 {
@@ -305,6 +313,62 @@ func (s *sqliteStorage) MarkAllRead(ctx context.Context) error {
 		return fmt.Errorf("mark all read: %w", err)
 	}
 	return nil
+}
+
+func (s *sqliteStorage) StarEntry(ctx context.Context, id string) error {
+	const q = `UPDATE entries SET starred = 1 WHERE id = ?`
+	_, err := s.db.ExecContext(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("star entry: %w", err)
+	}
+	return nil
+}
+
+func (s *sqliteStorage) UnstarEntry(ctx context.Context, id string) error {
+	const q = `UPDATE entries SET starred = 0 WHERE id = ?`
+	_, err := s.db.ExecContext(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("unstar entry: %w", err)
+	}
+	return nil
+}
+
+func (s *sqliteStorage) ListStarredEntries(ctx context.Context, feedID string, limit, offset int) ([]*domain.Entry, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	var rows *sql.Rows
+	var err error
+	if feedID == "" {
+		q := `SELECT ` + entryListColsPrefixed + `, COALESCE(f.title, '')
+			FROM entries e LEFT JOIN feeds f ON e.feed_id = f.id
+			WHERE e.starred = 1
+			ORDER BY e.published_at DESC LIMIT ? OFFSET ?`
+		rows, err = s.db.QueryContext(ctx, q, limit, offset)
+	} else {
+		q := `SELECT ` + entryListCols + `, '' as feed_title
+			FROM entries
+			WHERE feed_id = ? AND starred = 1
+			ORDER BY published_at DESC LIMIT ? OFFSET ?`
+		rows, err = s.db.QueryContext(ctx, q, feedID, limit, offset)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("list starred entries: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []*domain.Entry
+	for rows.Next() {
+		e, err := scanEntry(rows)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
 }
 
 func (s *sqliteStorage) SearchEntries(ctx context.Context, query string, limit, offset int) ([]*domain.Entry, error) {
@@ -480,10 +544,10 @@ func (s *sqliteStorage) SetFeedFolder(ctx context.Context, feedID, folderID stri
 func scanEntry(row scanner) (*domain.Entry, error) {
 	var e domain.Entry
 	var publishedAt, updatedAt, fetchedAt string
-	var read int
+	var read, starred int
 	err := row.Scan(&e.ID, &e.FeedID, &e.ExternalID, &e.Title, &e.URL,
 		&e.Summary, &e.Content, &e.Author,
-		&publishedAt, &updatedAt, &fetchedAt, &read, &e.FeedTitle)
+		&publishedAt, &updatedAt, &fetchedAt, &read, &starred, &e.FeedTitle)
 	if err != nil {
 		return nil, fmt.Errorf("scan entry: %w", err)
 	}
@@ -500,6 +564,7 @@ func scanEntry(row scanner) (*domain.Entry, error) {
 		return nil, fmt.Errorf("parse entry fetched_at: %w", err)
 	}
 	e.Read = read != 0
+	e.Starred = starred != 0
 	return &e, nil
 }
 

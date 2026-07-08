@@ -251,9 +251,15 @@ func (m model) entriesListView() string {
 				eTitle = "(no title)"
 			}
 
+			star := "  "
+			if entry.Starred {
+				star = "★ "
+			}
+
 			showingAllFeeds := m.feed == nil
-			line := fmt.Sprintf("  %s  %s",
+			line := fmt.Sprintf("  %s  %s%s",
 				pub,
+				star,
 				truncate(eTitle, widthForCol(m.width, 60)),
 			)
 			if showingAllFeeds {
@@ -261,9 +267,10 @@ func (m model) entriesListView() string {
 				if feedLabel == "" {
 					feedLabel = "?"
 				}
-				line = fmt.Sprintf("  %s  [%s] %s",
+				line = fmt.Sprintf("  %s  [%s] %s%s",
 					pub,
 					feedLabel,
+					star,
 					truncate(eTitle, widthForCol(m.width, 50)),
 				)
 			}
@@ -271,6 +278,8 @@ func (m model) entriesListView() string {
 			var rendered string
 			if i == m.entryCursor {
 				rendered = selectedItemStyle.Render("> " + line)
+			} else if entry.Starred {
+				rendered = starredItemStyle.Render("  " + line)
 			} else if entry.Read {
 				rendered = readItemStyle.Render("  " + line)
 			} else {
@@ -344,6 +353,13 @@ func entryDetailContent(m model) string {
 		b.WriteString(detailValueStyle.Render(e.URL))
 		b.WriteString("\n")
 	}
+	starLabel := ""
+	if e.Starred {
+		starLabel = "★"
+	}
+	b.WriteString(detailLabelStyle.Render("Starred: "))
+	b.WriteString(detailValueStyle.Render(starLabel))
+	b.WriteString("\n")
 	b.WriteString("\n")
 
 	body := e.Content
@@ -401,10 +417,14 @@ func (m model) statusBarRightText() string {
 		right = r
 	case entriesListScreen:
 		unread := countUnread(m.entries)
+		filterLabel := ""
+		if m.starredFilter {
+			filterLabel = " ★"
+		}
 		if m.showRead {
-			right = fmt.Sprintf("%d entries (%d unread)", len(m.entries), unread)
+			right = fmt.Sprintf("%d entries (%d unread)%s", len(m.entries), unread, filterLabel)
 		} else {
-			right = fmt.Sprintf("%d unread", len(m.entries))
+			right = fmt.Sprintf("%d unread%s", len(m.entries), filterLabel)
 		}
 	case entryDetailScreen:
 		if m.viewport.TotalLineCount() > 0 {

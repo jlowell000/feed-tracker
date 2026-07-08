@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS entries (
     updated_at   TEXT NOT NULL DEFAULT '',
     fetched_at   TEXT NOT NULL,
     read         INTEGER NOT NULL DEFAULT 0,
+    starred      INTEGER NOT NULL DEFAULT 0,
     UNIQUE(feed_id, external_id)
 );
 

@@ -170,19 +170,19 @@
 | 104 | Tests: storage per-feed prune + domain MaxAge field | ✓ |
 | 105 | Docs: cli.md, config.md, plan.md, PROGRESS.md | ✓ |
 
-## Phase 11: Star/Bookmark Entries
+## Phase 11: Star/Bookmark Entries ✅
 
 | # | Step | Status |
 |---|---|---|
-| 106 | Domain: Starred bool on Entry | |
-| 107 | Storage: migration + StarEntry/UnstarEntry/ListStarredEntries | |
-| 108 | Storage: tests | |
-| 109 | CLI: ft star / ft unstar commands | |
-| 110 | CLI: ft list --starred flag | |
-| 111 | TUI: entry detail s key toggle star | |
-| 112 | TUI: star indicator + starred style in entry list | |
-| 113 | TUI: S key starred-only filter | |
-| 114 | Help + bindings update | |
+| 106 | Domain: Starred bool on Entry | ✓ |
+| 107 | Storage: migration + StarEntry/UnstarEntry/ListStarredEntries | ✓ |
+| 108 | Storage: tests | ✓ |
+| 109 | CLI: ft star / ft unstar commands | ✓ |
+| 110 | CLI: ft list --starred flag | ✓ |
+| 111 | TUI: entry detail s key toggle star | ✓ |
+| 112 | TUI: star indicator + starred style in entry list | ✓ |
+| 113 | TUI: S key starred-only filter | ✓ |
+| 114 | Help + bindings update | ✓ |
 
 ## Phase 12: Manual Entry Deletion
 

@@ -968,3 +968,146 @@ func TestDeleteEntriesOlderThanForFeed_ZeroAge(t *testing.T) {
 		t.Errorf("deleted %d, want 0", n)
 	}
 }
+
+func TestStarEntry(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+
+	entryID := uuid.New().String()
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: entryID, FeedID: feedID, ExternalID: "e1",
+		Title: "Entry", FetchedAt: time.Now(),
+	})
+
+	if err := s.StarEntry(ctx, entryID); err != nil {
+		t.Fatalf("StarEntry: %v", err)
+	}
+
+	entries, err := s.ListStarredEntries(ctx, feedID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListStarredEntries: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("len(entries) = %d, want 1", len(entries))
+	}
+	if !entries[0].Starred {
+		t.Error("expected entry to be starred")
+	}
+}
+
+func TestUnstarEntry(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+
+	entryID := uuid.New().String()
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: entryID, FeedID: feedID, ExternalID: "e1",
+		Title: "Entry", FetchedAt: time.Now(),
+	})
+
+	s.StarEntry(ctx, entryID)
+	if err := s.UnstarEntry(ctx, entryID); err != nil {
+		t.Fatalf("UnstarEntry: %v", err)
+	}
+
+	entries, err := s.ListStarredEntries(ctx, feedID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListStarredEntries: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("len(entries) after unstar = %d, want 0", len(entries))
+	}
+}
+
+func TestListStarredEntries(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+
+	e1ID := uuid.New().String()
+	e2ID := uuid.New().String()
+
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: e1ID, FeedID: feedID, ExternalID: "e1",
+		Title: "Starred Entry", PublishedAt: time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC), FetchedAt: time.Now(),
+	})
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: e2ID, FeedID: feedID, ExternalID: "e2",
+		Title: "Not Starred", PublishedAt: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), FetchedAt: time.Now(),
+	})
+
+	s.StarEntry(ctx, e1ID)
+
+	entries, err := s.ListStarredEntries(ctx, feedID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListStarredEntries: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("len(entries) = %d, want 1", len(entries))
+	}
+	if entries[0].Title != "Starred Entry" {
+		t.Errorf("entries[0].Title = %q, want %q", entries[0].Title, "Starred Entry")
+	}
+}
+
+func TestListStarredEntries_Empty(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feedID := uuid.New().String()
+	s.AddFeed(ctx, &domain.Feed{ID: feedID, Title: "Test", FeedURL: "https://example.com/feed", FeedType: domain.FeedTypeRSS})
+
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feedID, ExternalID: "e1",
+		Title: "Entry", FetchedAt: time.Now(),
+	})
+
+	entries, err := s.ListStarredEntries(ctx, feedID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListStarredEntries: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("len(entries) = %d, want 0", len(entries))
+	}
+}
+
+func TestListStarredEntries_AllFeeds(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	feed1 := &domain.Feed{ID: uuid.New().String(), Title: "Feed A", FeedURL: "https://a.com/feed", FeedType: domain.FeedTypeRSS}
+	feed2 := &domain.Feed{ID: uuid.New().String(), Title: "Feed B", FeedURL: "https://b.com/feed", FeedType: domain.FeedTypeAtom}
+	s.AddFeed(ctx, feed1)
+	s.AddFeed(ctx, feed2)
+
+	e1ID := uuid.New().String()
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: e1ID, FeedID: feed1.ID, ExternalID: "a1",
+		Title: "Feed A Entry", PublishedAt: time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC), FetchedAt: time.Now(),
+	})
+	s.UpsertEntry(ctx, &domain.Entry{
+		ID: uuid.New().String(), FeedID: feed2.ID, ExternalID: "b1",
+		Title: "Feed B Entry", PublishedAt: time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC), FetchedAt: time.Now(),
+	})
+
+	s.StarEntry(ctx, e1ID)
+
+	entries, err := s.ListStarredEntries(ctx, "", 10, 0)
+	if err != nil {
+		t.Fatalf("ListStarredEntries all feeds: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("len(entries) = %d, want 1", len(entries))
+	}
+	if entries[0].FeedTitle != "Feed A" {
+		t.Errorf("entries[0].FeedTitle = %q, want %q", entries[0].FeedTitle, "Feed A")
+	}
+}

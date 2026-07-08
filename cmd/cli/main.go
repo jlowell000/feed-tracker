@@ -98,6 +98,10 @@ func main() {
 		runUnread(ctx, *cfgPath, remaining)
 	case "open":
 		runOpen(ctx, *cfgPath, remaining)
+	case "star":
+		runStar(ctx, *cfgPath, remaining)
+	case "unstar":
+		runUnstar(ctx, *cfgPath, remaining)
 	case "prune":
 		runPrune(ctx, *cfgPath)
 	case "vacuum":
@@ -128,6 +132,8 @@ Commands:
   search [--limit <n>] <query>  Search entries by keyword
   read   [--all | --feed <name> | --feed-id <id> | <entry-id>]  Mark entries as read
   unread <entry-id>  Mark entry as unread
+  star   <entry-id>  Star/bookmark an entry
+  unstar <entry-id>  Remove star from an entry
   open   <entry-id>  Open entry URL in system browser
   prune             Delete entries older than the configured prune.max_age
   vacuum            Reclaim database storage space (VACUUM)

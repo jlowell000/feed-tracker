@@ -187,6 +187,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Batch(cmds...)
 
+	case entryStarredMsg:
+		m.status = "Entry star toggled"
+		return m, loadEntriesCmd(m.store, effectiveFeedID(m), m.showRead, m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout)
 	case feedAddedMsg:
 		m.loading = false
 		if msg.err != nil {
@@ -482,6 +485,7 @@ func (m model) handleEntriesListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.screen = feedsListScreen
 		m.feed = nil
 		m.filterFeedID = ""
+		m.starredFilter = false
 		m.entry = nil
 		m.entryCursor = 0
 		m.searchQuery = ""
@@ -512,6 +516,14 @@ func (m model) handleEntriesListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.entryOffset > 0 && len(m.entries) >= m.entryPageSize {
 			return m, loadMoreEntriesCmd(m.store, effectiveFeedID(m), m.showRead, m.entryPageSize, m.entryOffset, m.cfg.HTTP.Timeout)
 		}
+	case "S":
+		m.starredFilter = !m.starredFilter
+		m.status = ""
+		if m.starredFilter {
+			m.status = "Showing starred entries"
+			return m, loadStarredEntriesCmd(m.store, effectiveFeedID(m), m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout)
+		}
+		return m, loadEntriesCmd(m.store, effectiveFeedID(m), m.showRead, m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout)
 	case "[":
 		if len(m.displayItems) == 0 {
 			return m, nil
@@ -586,6 +598,33 @@ func (m model) handleEntryDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "o":
 		if m.entry != nil && m.entry.URL != "" {
 			openURL(m.entry.URL)
+		}
+	case "s":
+		if m.entry != nil {
+			m.screen = entriesListScreen
+			entryID := m.entry.ID
+			m.entry = nil
+			if m.searchQuery != "" {
+				ctx, cancel := context.WithTimeout(context.Background(), m.cfg.HTTP.Timeout)
+				defer cancel()
+				e, err := m.store.GetEntry(ctx, entryID)
+				if err != nil {
+					return m, func() tea.Msg { return errMsg{err} }
+				}
+				if e.Starred {
+					if err := m.store.UnstarEntry(ctx, entryID); err != nil {
+						return m, func() tea.Msg { return errMsg{err} }
+					}
+					m.status = "Entry unstarred"
+				} else {
+					if err := m.store.StarEntry(ctx, entryID); err != nil {
+						return m, func() tea.Msg { return errMsg{err} }
+					}
+					m.status = "Entry starred"
+				}
+				return m, searchEntriesCmd(m.store, m.searchQuery, m.cfg.TUI.EntryLimit, m.cfg.HTTP.Timeout)
+			}
+			return m, toggleStarCmd(m.store, entryID, m.cfg.HTTP.Timeout)
 		}
 	case "M":
 		if m.entry != nil {

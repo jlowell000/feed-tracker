@@ -36,6 +36,10 @@ type Storage interface {
 	MarkAllRead(ctx context.Context) error
 	UnreadCountByFeed(ctx context.Context) (map[string]int, error)
 
+	StarEntry(ctx context.Context, id string) error
+	UnstarEntry(ctx context.Context, id string) error
+	ListStarredEntries(ctx context.Context, feedID string, limit, offset int) ([]*domain.Entry, error)
+
 	SearchEntries(ctx context.Context, query string, limit, offset int) ([]*domain.Entry, error)
 
 	DeleteEntriesOlderThan(ctx context.Context, age time.Duration) (int64, error)

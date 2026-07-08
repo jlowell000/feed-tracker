@@ -22,7 +22,7 @@ const bashCompletionScript = `_ft_completions() {
     _init_completion || return
 
     if [ $cword -eq 1 ]; then
-        COMPREPLY=($(compgen -W "migrate add fetch feeds feed folder import export delete list search read unread open prune vacuum completion" -- "$cur"))
+        COMPREPLY=($(compgen -W "migrate add fetch feeds feed folder import export delete list search read unread star unstar open prune vacuum completion" -- "$cur"))
         return
     fi
 
@@ -97,6 +97,8 @@ _ft() {
         'list:List entries'
         'read:Mark entry as read'
         'unread:Mark entry as unread'
+        'star:Star/bookmark an entry'
+        'unstar:Remove star from an entry'
         'search:Search entries by keyword'
         'open:Open entry URL in system browser'
         'prune:Delete entries older than configured max_age'
